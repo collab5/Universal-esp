@@ -1,0 +1,1845 @@
+-- V1 CUSTOM GUI
+-- Lightweight native GUI: image background, purple neon borders/toggles/sliders.
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+local Toggles = {}
+local Options = {}
+getgenv().Toggles = Toggles
+getgenv().Options = Options
+local Connections = {}
+
+local PURPLE = Color3.fromRGB(170, 70, 255)
+local PURPLE_DARK = Color3.fromRGB(35, 15, 55)
+local PANEL = Color3.fromRGB(16, 12, 22)
+local TEXT = Color3.fromRGB(235, 225, 245)
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "V1_CustomGUI"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+pcall(function() Gui.Parent = game:GetService("CoreGui") end)
+if not Gui.Parent then Gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(560, 420)
+Main.Position = UDim2.new(0.5, -280, 0.5, -210)
+Main.BackgroundColor3 = PANEL
+Main.BackgroundTransparency = 0.08
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = Main
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = PURPLE
+Stroke.Thickness = 1.5
+Stroke.Transparency = 0.1
+Stroke.Parent = Main
+
+-- Background image placeholder. Replace this ID later if a specific V1 background is chosen.
+local Background = Instance.new("ImageLabel")
+Background.Name = "Background"
+Background.Size = UDim2.fromScale(1, 1)
+Background.BackgroundTransparency = 1
+Background.Image = "rbxassetid://0"
+Background.ImageTransparency = 0.78
+Background.ScaleType = Enum.ScaleType.Crop
+Background.ZIndex = 0
+Background.Parent = Main
+
+local BgCorner = Corner:Clone()
+BgCorner.Parent = Background
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 44)
+Header.BackgroundColor3 = PURPLE_DARK
+Header.BackgroundTransparency = 0.18
+Header.BorderSizePixel = 0
+Header.ZIndex = 2
+Header.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.fromOffset(14, 0)
+Title.Size = UDim2.new(1, -100, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "vex¿v | V1"
+Title.TextColor3 = TEXT
+Title.TextSize = 17
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 3
+Title.Parent = Header
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.fromOffset(38, 30)
+Minimize.Position = UDim2.new(1, -48, 0, 7)
+Minimize.BackgroundColor3 = PURPLE
+Minimize.Text = "—"
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+Minimize.BorderSizePixel = 0
+Minimize.ZIndex = 3
+Minimize.Parent = Header
+Instance.new("UICorner", Minimize).CornerRadius = UDim.new(0, 7)
+
+local Content = Instance.new("ScrollingFrame")
+Content.Name = "Content"
+Content.Position = UDim2.fromOffset(12, 54)
+Content.Size = UDim2.new(1, -24, 1, -66)
+Content.BackgroundTransparency = 1
+Content.BorderSizePixel = 0
+Content.ScrollBarThickness = 4
+Content.ScrollBarImageColor3 = PURPLE
+Content.ZIndex = 2
+Content.Parent = Main
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 8)
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = Content
+
+local function AddSection(name)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, -6, 0, 34)
+    f.BackgroundColor3 = PURPLE_DARK
+    f.BackgroundTransparency = 0.2
+    f.BorderSizePixel = 0
+    f.ZIndex = 2
+    f.Parent = Content
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
+    local s = Instance.new("UIStroke")
+    s.Color = PURPLE
+    s.Thickness = 1
+    s.Transparency = 0.35
+    s.Parent = f
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Position = UDim2.fromOffset(12,0)
+    l.Size = UDim2.new(1,-24,1,0)
+    l.Text = name
+    l.Font = Enum.Font.GothamBold
+    l.TextColor3 = TEXT
+    l.TextSize = 13
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.ZIndex = 3
+    l.Parent = f
+    return f
+end
+
+local function AddToggle(name, default, callback)
+    Toggles[name] = default or false
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -6, 0, 38)
+    b.BackgroundColor3 = PANEL
+    b.BackgroundTransparency = 0.12
+    b.Text = ""
+    b.BorderSizePixel = 0
+    b.ZIndex = 2
+    b.Parent = Content
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
+    local st = Instance.new("UIStroke")
+    st.Color = PURPLE
+    st.Transparency = 0.55
+    st.Parent = b
+
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Position = UDim2.fromOffset(12,0)
+    l.Size = UDim2.new(1,-80,1,0)
+    l.Text = name
+    l.Font = Enum.Font.Gotham
+    l.TextColor3 = TEXT
+    l.TextSize = 13
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.ZIndex = 3
+    l.Parent = b
+
+    local ind = Instance.new("Frame")
+    ind.Size = UDim2.fromOffset(42,22)
+    ind.Position = UDim2.new(1,-54,0.5,-11)
+    ind.BackgroundColor3 = Color3.fromRGB(55,45,65)
+    ind.BorderSizePixel = 0
+    ind.ZIndex = 3
+    ind.Parent = b
+    Instance.new("UICorner", ind).CornerRadius = UDim.new(1,0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(18,18)
+    knob.Position = UDim2.fromOffset(2,2)
+    knob.BackgroundColor3 = Color3.fromRGB(220,210,225)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 4
+    knob.Parent = ind
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
+
+    local function render()
+        local on = Toggles[name]
+        ind.BackgroundColor3 = on and PURPLE or Color3.fromRGB(55,45,65)
+        knob.BackgroundColor3 = on and Color3.new(1,1,1) or Color3.fromRGB(220,210,225)
+        knob.Position = on and UDim2.fromOffset(22,2) or UDim2.fromOffset(2,2)
+    end
+    b.MouseButton1Click:Connect(function()
+        Toggles[name] = not Toggles[name]
+        render()
+        if callback then task.spawn(callback, Toggles[name]) end
+    end)
+    render()
+    return b
+end
+
+local function AddSlider(name, min, max, default, callback)
+    Options[name] = math.clamp(default or min, min, max)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, -6, 0, 54)
+    f.BackgroundColor3 = PANEL
+    f.BackgroundTransparency = 0.12
+    f.BorderSizePixel = 0
+    f.ZIndex = 2
+    f.Parent = Content
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
+    local st = Instance.new("UIStroke")
+    st.Color = PURPLE
+    st.Transparency = 0.55
+    st.Parent = f
+
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.fromOffset(12,4)
+    label.Size = UDim2.new(1,-80,0,20)
+    label.TextColor3 = TEXT
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 3
+    label.Parent = f
+
+    local bar = Instance.new("Frame")
+    bar.Position = UDim2.fromOffset(12,32)
+    bar.Size = UDim2.new(1,-24,0,7)
+    bar.BackgroundColor3 = Color3.fromRGB(55,45,65)
+    bar.BorderSizePixel = 0
+    bar.ZIndex = 3
+    bar.Parent = f
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+
+    local fill = Instance.new("Frame")
+    fill.BackgroundColor3 = PURPLE
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 4
+    fill.Parent = bar
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(14,14)
+    knob.AnchorPoint = Vector2.new(0.5,0.5)
+    knob.BackgroundColor3 = Color3.new(1,1,1)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 5
+    knob.Parent = bar
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
+
+    local dragging = false
+    local function setValue(v)
+        Options[name] = math.clamp(v, min, max)
+        local a = (Options[name]-min)/(max-min)
+        fill.Size = UDim2.new(a,0,1,0)
+        knob.Position = UDim2.new(a,0,0.5,0)
+        label.Text = name .. ": " .. string.format("%.1f", Options[name])
+        if callback then task.spawn(callback, Options[name]) end
+    end
+    local function fromX(x)
+        local a = math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+        setValue(min+(max-min)*a)
+    end
+    bar.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true
+            fromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+            fromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=false
+        end
+    end)
+    setValue(Options[name])
+    return f
+end
+
+local function AddLabel(txt)
+    local l=Instance.new("TextLabel")
+    l.Size=UDim2.new(1,-6,0,26)
+    l.BackgroundTransparency=1
+    l.Text=txt
+    l.Font=Enum.Font.Gotham
+    l.TextColor3=TEXT
+    l.TextSize=12
+    l.ZIndex=3
+    l.Parent=Content
+    return l
+end
+
+-- Existing feature code starts here. The custom GUI functions above replace Linoria controls.
+
+-- Compatibility adapters for the existing V1 feature code.
+local V1Tab = {}
+local function Groupbox()
+    return {
+        AddToggle=function(_, name, cfg)
+            return AddToggle(name, cfg and cfg.Default or false, cfg and cfg.Callback)
+        end,
+        AddSlider=function(_, name, cfg)
+            return AddSlider(name, cfg.Min or 0, cfg.Max or 100, cfg.Default or 0, cfg.Callback)
+        end,
+        AddLabel=function(_, txt) return AddLabel(txt) end,
+        AddButton=function(_, name, cb)
+            local b=Instance.new("TextButton")
+            b.Size=UDim2.new(1,-6,0,34); b.Text=name; b.Font=Enum.Font.Gotham
+            b.TextColor3=TEXT; b.BackgroundColor3=PANEL; b.BorderSizePixel=0; b.ZIndex=3; b.Parent=Content
+            Instance.new("UICorner",b).CornerRadius=UDim.new(0,7)
+            b.MouseButton1Click:Connect(function() if cb then task.spawn(cb) end end)
+            return b
+        end
+    }
+end
+function V1Tab:AddLeftGroupbox() return Groupbox() end
+function V1Tab:AddRightGroupbox() return Groupbox() end
+local V5Tab = V1Tab
+
+Minimize.MouseButton1Click:Connect(function()
+    Content.Visible = not Content.Visible
+    Main.Size = Content.Visible and UDim2.fromOffset(560,420) or UDim2.fromOffset(560,44)
+end)
+
+do
+    local dragging=false
+    local dragStart, startPos
+    Header.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            dragging=true; dragStart=i.Position; startPos=Main.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+            local d=i.Position-dragStart
+            Main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=false end
+    end)
+end
+
+-- ==================================================
+-- [BAGIAN 1] VISUAL
+-- ==================================================
+local VisLeft = V5Tab:AddLeftGroupbox("👁 VISUAL")
+local VisRight = V5Tab:AddRightGroupbox("🌌 ENVIRONMENT")
+local VisLeft2 = V5Tab:AddLeftGroupbox("👤 AVATAR")
+
+-- FOV
+VisLeft:AddToggle("FOV", {
+    Text = "FOV Diperbesar",
+    Default = false,
+    Callback = function(val)
+        Toggles.FOV = val
+        Camera.FieldOfView = val and (Options.FOVValue or 90) or 70
+    end
+})
+VisLeft:AddSlider("FOVValue", {
+    Text = "Nilai FOV", Default = 90, Min = 70, Max = 120, Rounding = 1,
+    Callback = function(val)
+        Options.FOVValue = val
+        if Toggles.FOV then Camera.FieldOfView = val end
+    end
+})
+
+-- Rainbow, dibuat satu connection dan tidak menumpuk
+local rainbowConnection
+VisLeft:AddToggle("Rainbow", {
+    Text = "Karakter Pelangi", Default = false,
+    Callback = function(val)
+        Toggles.Rainbow = val
+        if rainbowConnection then rainbowConnection:Disconnect(); rainbowConnection = nil end
+        if val then
+            local hue = 0
+            rainbowConnection = RunService.RenderStepped:Connect(function(dt)
+                local char = LocalPlayer.Character
+                if not char then return end
+                hue = (hue + (Options.RainbowSpeed or 5) * dt * 0.05) % 1
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.Color = Color3.fromHSV(hue, 1, 1)
+                    end
+                end
+            end)
+        end
+    end
+})
+VisLeft:AddSlider("RainbowSpeed", {
+    Text = "Kecepatan Pergantian Warna", Default = 5, Min = 1, Max = 20, Rounding = 1,
+    Callback = function(val) Options.RainbowSpeed = val end
+})
+
+-- Lingkungan
+VisRight:AddToggle("TimeChange", {
+    Text = "Ubah Waktu", Default = false,
+    Callback = function(val)
+        Toggles.TimeChange = val
+        if val then Lighting.ClockTime = Options.TimeValue or 0 end
+    end
+})
+VisRight:AddSlider("TimeValue", {
+    Text = "Waktu (Jam)", Default = 0, Min = 0, Max = 24, Rounding = 0,
+    Callback = function(val)
+        Options.TimeValue = val
+        if Toggles.TimeChange then Lighting.ClockTime = val end
+    end
+})
+VisRight:AddToggle("NoFog", {
+    Text = "No Fog", Default = false,
+    Callback = function(val)
+        Toggles.NoFog = val
+        if val then
+            Lighting.FogEnd = 1e6
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("Atmosphere") then obj.Enabled = false end
+            end
+        else
+            Lighting.FogEnd = 100000
+        end
+    end
+})
+VisRight:AddToggle("Fullbright", {
+    Text = "Fullbright", Default = false,
+    Callback = function(val)
+        Toggles.Fullbright = val
+        if val then
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.GlobalShadows = false
+        else
+            Lighting.Brightness = 1
+            Lighting.GlobalShadows = true
+        end
+    end
+})
+VisRight:AddToggle("NoShadow", {
+    Text = "No Shadow", Default = false,
+    Callback = function(val)
+        Toggles.NoShadow = val
+        Lighting.GlobalShadows = not val
+        for _, light in ipairs(Lighting:GetDescendants()) do
+            if light:IsA("Light") then light.Shadows = not val end
+        end
+    end
+})
+
+-- China Hat: selalu hapus instance lama sebelum membuat baru
+local chinaHatConnection
+local function RemoveChinaHat(char)
+    char = char or LocalPlayer.Character
+    if char then
+        local old = char:FindFirstChild("ChinaHat")
+        if old then old:Destroy() end
+    end
+end
+local function CreateChinaHat()
+    local char = LocalPlayer.Character
+    if not char then return end
+    RemoveChinaHat(char)
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+    local hat = Instance.new("Part")
+    hat.Name = "ChinaHat"
+    hat.Size = Vector3.new(2, 0.25, 2)
+    hat.CanCollide = false
+    hat.CanTouch = false
+    hat.CanQuery = false
+    hat.Massless = true
+    hat.Material = Enum.Material.SmoothPlastic
+    hat.Color = Color3.fromRGB(255, 0, 255)
+    local mesh = Instance.new("SpecialMesh")
+    mesh.MeshId = "rbxassetid://84530303562911"
+    mesh.TextureId = "rbxassetid://89342168321397"
+    mesh.Parent = hat
+    local weld = Instance.new("Weld")
+    weld.Part0 = head
+    weld.Part1 = hat
+    weld.C0 = CFrame.new(0, 0.35, 0)
+    weld.Parent = hat
+    hat.Parent = char
+end
+VisLeft2:AddToggle("ChinaHat", {
+    Text = "China Hat", Default = false,
+    Callback = function(val)
+        Toggles.ChinaHat = val
+        if val then CreateChinaHat() else RemoveChinaHat() end
+    end
+})
+chinaHatConnection = LocalPlayer.CharacterAdded:Connect(function(char)
+    if Toggles.ChinaHat then
+        task.wait(0.5)
+        CreateChinaHat()
+    end
+end)
+table.insert(Connections, chinaHatConnection)
+
+-- Chams sendiri: badan ungu transparan, outline biru biasa, tanpa Neon material
+local chamsOriginal = {}
+local chamsHighlight
+local function SetChamsSelf(enabled)
+    local char = LocalPlayer.Character
+    if chamsHighlight then chamsHighlight:Destroy(); chamsHighlight = nil end
+    if not char then return end
+    if enabled then
+        chamsOriginal = {}
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.Name ~= "ChinaHat" then
+                chamsOriginal[part] = {Color = part.Color, Transparency = part.Transparency}
+                part.Color = Color3.fromRGB(125, 55, 170)
+                part.Transparency = math.max(part.Transparency, 0.60)
+            end
+        end
+        chamsHighlight = Instance.new("Highlight")
+        chamsHighlight.Name = "VexV_ChamsSelf"
+        chamsHighlight.Adornee = char
+        chamsHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        chamsHighlight.FillColor = Color3.fromRGB(125, 55, 170)
+        chamsHighlight.FillTransparency = 0.92
+        chamsHighlight.OutlineColor = Color3.fromRGB(70, 150, 255)
+        chamsHighlight.OutlineTransparency = 0.05
+        chamsHighlight.Parent = char
+    else
+        for part, original in pairs(chamsOriginal) do
+            if part and part.Parent then
+                part.Color = original.Color
+                part.Transparency = original.Transparency
+            end
+        end
+        chamsOriginal = {}
+    end
+end
+VisLeft2:AddToggle("ChamsSelf", {
+    Text = "Chams Karakter Sendiri", Default = false,
+    Callback = function(val) Toggles.ChamsSelf = val; SetChamsSelf(val) end
+})
+
+-- ESP + profile image 20x20 di atas nama
+local espEntries = {}
+local function RemoveESP(player)
+    local e=espEntries[player]; if not e then return end
+    if e.highlight then e.highlight:Destroy() end
+    if e.gui then e.gui:Destroy() end
+    espEntries[player]=nil
+end
+local function AddESP(player)
+    if player==LocalPlayer or not Toggles.ESP_simple then return end
+    RemoveESP(player)
+    local char=player.Character; if not char then return end
+    local hl=Instance.new("Highlight")
+    hl.Name="VexV_ESP"; hl.Adornee=char; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillColor=Color3.fromRGB(255,0,255); hl.FillTransparency=0.65
+    hl.OutlineColor=Color3.fromRGB(255,255,255); hl.OutlineTransparency=0.35; hl.Parent=char
+    local head=char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart"); if not head then hl:Destroy(); return end
+    local gui=Instance.new("BillboardGui"); gui.Name="VexV_ESP_Name"; gui.Adornee=head; gui.Size=UDim2.fromOffset(150,54)
+    gui.StudsOffset=Vector3.new(0,3.15,0); gui.AlwaysOnTop=true; gui.MaxDistance=250; gui.Parent=char
+    local profile=Instance.new("ImageLabel"); profile.Name="ProfileImage"; profile.Size=UDim2.fromOffset(30,30)
+    profile.Position=UDim2.new(0.5,-15,0,0); profile.BackgroundTransparency=1; profile.ScaleType=Enum.ScaleType.Fit; profile.Parent=gui
+    local label=Instance.new("TextLabel"); label.Size=UDim2.new(1,0,0,24); label.Position=UDim2.new(0,0,0,31)
+    label.BackgroundTransparency=1; label.Text=player.Name; label.TextColor3=Color3.fromRGB(230,230,230); label.TextSize=12; label.Font=Enum.Font.SourceSans; label.Parent=gui
+    task.spawn(function()
+        local ok,image=pcall(function() return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
+        if ok and profile.Parent then profile.Image=image end
+    end)
+    espEntries[player]={highlight=hl,gui=gui}
+end
+local function SetESP(enabled)
+    Toggles.ESP_simple=enabled
+    for player in pairs(espEntries) do RemoveESP(player) end
+    if not enabled then return end
+    for _,player in ipairs(Players:GetPlayers()) do AddESP(player) end
+end
+VisLeft:AddToggle("ESP_simple",{Text="Eskrim",Default=false,Callback=SetESP})
+table.insert(Connections,Players.PlayerAdded:Connect(function(player)
+    if player==LocalPlayer then return end
+    table.insert(Connections,player.CharacterAdded:Connect(function() task.wait(0.2); if Toggles.ESP_simple then AddESP(player) end end))
+end))
+for _,player in ipairs(Players:GetPlayers()) do
+    if player~=LocalPlayer then table.insert(Connections,player.CharacterAdded:Connect(function() task.wait(0.2); if Toggles.ESP_simple then AddESP(player) end end)) end
+end
+table.insert(Connections,Players.PlayerRemoving:Connect(RemoveESP))
+
+-- ==================================================
+-- V1 AVATAR / MOVEMENT / NETWORK / CAMERA
+-- ==================================================
+
+-- No Head + hide all head accessories except China Hat / 8-Bit Royal Crown
+local noHeadState = {}
+
+local function IsWhitelistHeadAccessory(acc)
+    if not acc or not acc:IsA("Accessory") then return false end
+    local n = string.lower(acc.Name:gsub("[%s_%-%:]", ""))
+    return n == "chinahat"
+        or n == "8bitroyalcrown"
+        or n:find("chinahat") ~= nil
+        or n:find("8bitroyalcrown") ~= nil
+end
+
+local function SetNoHead(enabled)
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    if not enabled then
+        for obj, state in pairs(noHeadState) do
+            if obj and obj.Parent then
+                if obj:IsA("BasePart") then
+                    obj.Transparency = state.Transparency
+                    obj.LocalTransparencyModifier = state.LocalTransparencyModifier
+                elseif obj:IsA("Decal") then
+                    obj.Transparency = state.Transparency
+                end
+            end
+        end
+        table.clear(noHeadState)
+        return
+    end
+
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local acc = obj:FindFirstAncestorOfClass("Accessory")
+            local attachedToHead = false
+
+            if acc then
+                local handle = acc:FindFirstChild("Handle")
+                attachedToHead = handle == obj or acc:FindFirstChild("Head", true) ~= nil
+            end
+
+            if obj.Name == "Head" then
+                if not noHeadState[obj] then
+                    noHeadState[obj] = {
+                        Transparency = obj.Transparency,
+                        LocalTransparencyModifier = obj.LocalTransparencyModifier
+                    }
+                end
+                obj.Transparency = 1
+                obj.LocalTransparencyModifier = 1
+
+            elseif acc and not IsWhitelistHeadAccessory(acc) then
+                -- Hide every accessory whose handle is attached to the character head,
+                -- including hair, hats and face accessories.
+                local weld = obj:FindFirstChildWhichIsA("Weld") or obj:FindFirstChildWhichIsA("WeldConstraint")
+                local headAttachment = obj:FindFirstChildWhichIsA("Attachment")
+                local accName = string.lower(acc.Name)
+
+                if attachedToHead
+                    or accName:find("hair")
+                    or accName:find("hat")
+                    or accName:find("face")
+                    or accName:find("head")
+                    or accName:find("crown")
+                    or headAttachment then
+
+                    if not noHeadState[obj] then
+                        noHeadState[obj] = {
+                            Transparency = obj.Transparency,
+                            LocalTransparencyModifier = obj.LocalTransparencyModifier
+                        }
+                    end
+                    obj.Transparency = 1
+                    obj.LocalTransparencyModifier = 1
+                end
+            end
+        elseif obj:IsA("Decal") and obj.Parent and obj.Parent.Name == "Head" then
+            if not noHeadState[obj] then
+                noHeadState[obj] = {Transparency = obj.Transparency}
+            end
+            obj.Transparency = 1
+        end
+    end
+end
+
+VisLeft2:AddToggle("NoHead", {
+    Text = "No Head",
+    Default = false,
+    Callback = function(v)
+        Toggles.NoHead = v
+        SetNoHead(v)
+    end
+})
+
+-- One Leg: kaki kiri disembunyikan lokal
+local oneLegOriginal = {}
+local function SetOneLeg(enabled)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local names = {"LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "Left Leg"}
+    if enabled then
+        for _, n in ipairs(names) do
+            local part = char:FindFirstChild(n, true)
+            if part and part:IsA("BasePart") then
+                oneLegOriginal[part] = {Transparency = part.Transparency, LocalTransparencyModifier = part.LocalTransparencyModifier}
+                part.Transparency = 1
+                part.LocalTransparencyModifier = 1
+            end
+        end
+    else
+        for part, st in pairs(oneLegOriginal) do
+            if part and part.Parent then
+                part.Transparency = st.Transparency
+                part.LocalTransparencyModifier = st.LocalTransparencyModifier
+            end
+        end
+        oneLegOriginal = {}
+    end
+end
+VisLeft2:AddToggle("OneLeg", {Text="One Leg", Default=false, Callback=function(v) Toggles.OneLeg=v; SetOneLeg(v) end})
+
+-- Speed Up
+local SPEED_NORMAL = 16
+local speedConnection
+local function UpdateSpeed()
+    local hum = GetHumanoid()
+    if hum then hum.WalkSpeed = Toggles.SpeedUp and (Options.SpeedUpValue or 24) or SPEED_NORMAL end
+end
+table.insert(Connections,RunService.Heartbeat:Connect(function() if Toggles.SpeedUp then UpdateSpeed() end end))
+V5Tab:AddLeftGroupbox("🏃 MOVEMENT")
+local MoveGroup = V5Tab:AddLeftGroupbox("🏃 MOVEMENT")
+MoveGroup:AddToggle("SpeedUp", {
+    Text="Sedih",
+    Default=false,
+    Callback=function(v)
+        Toggles.SpeedUp=v
+        UpdateSpeed()
+    end
+}):AddKeyPicker("SpeedUpKey", {
+    Text="Tombol Sedih",
+    Mode="Toggle",
+    Default="E",
+    SyncToggleState=true
+})
+
+MoveGroup:AddSlider("SpeedUpValue", {
+    Text="Kecepatan",
+    Default=24,
+    Min=16,
+    Max=100,
+    Rounding=1,
+    Callback=function(v)
+        Options.SpeedUpValue=v
+        if Toggles.SpeedUp then
+            UpdateSpeed()
+        end
+    end
+})
+
+MoveGroup:AddToggle("SpeedUpV2", {
+    Text="Sedih V2",
+    Default=false,
+    Callback=function(v)
+        Toggles.SpeedUpV2=v
+        if v then
+            local char=LocalPlayer.Character
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed=Options.SpeedUpV2Value or 32
+            end
+        else
+            local char=LocalPlayer.Character
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed=16
+            end
+            if Toggles.SpeedUp then
+                UpdateSpeed()
+            end
+        end
+    end
+}):AddKeyPicker("SpeedUpV2Key", {
+    Text="Tombol Sedih V2",
+    Mode="Toggle",
+    Default="Q",
+    SyncToggleState=true
+})
+
+MoveGroup:AddSlider("SpeedUpV2Value", {
+    Text="Kecepatan Sedih V2",
+    Default=32,
+    Min=16,
+    Max=150,
+    Rounding=1,
+    Callback=function(v)
+        Options.SpeedUpV2Value=v
+        if Toggles.SpeedUpV2 then
+            local char=LocalPlayer.Character
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed=v
+            end
+        end
+    end
+})
+
+-- No Slowdown
+local noSlowConnection
+local function SetNoSlowdown(enabled)
+    if noSlowConnection then noSlowConnection:Disconnect(); noSlowConnection=nil end
+    if enabled then
+        noSlowConnection=RunService.Heartbeat:Connect(function()
+            if not Toggles.NoSlowdown then return end
+            local hum=GetHumanoid()
+            if hum then hum.WalkSpeed=Toggles.SpeedUp and (Options.SpeedUpValue or 24) or 16 end
+        end)
+    end
+end
+MoveGroup:AddToggle("NoSlowdown", {Text="No Slowdown", Default=false, Callback=function(v) Toggles.NoSlowdown=v; SetNoSlowdown(v) end})
+
+-- No Fall
+local noFallConnection
+local function SetNoFall(enabled)
+    if noFallConnection then noFallConnection:Disconnect(); noFallConnection=nil end
+    if enabled then
+        noFallConnection=RunService.Heartbeat:Connect(function()
+            if not Toggles.NoFall then return end
+            local hum=GetHumanoid()
+            local hrp=GetHumanoidRootPart()
+            if hum and hrp then
+                if hum:GetState()==Enum.HumanoidStateType.FallingDown then hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
+                local v=hrp.AssemblyLinearVelocity
+                if v.Y < -70 then hrp.AssemblyLinearVelocity=Vector3.new(v.X,-10,v.Z) end
+            end
+        end)
+    end
+end
+MoveGroup:AddToggle("NoFall", {Text="No Fall", Default=false, Callback=function(v) Toggles.NoFall=v; SetNoFall(v) end})
+
+-- Fake Lag: simulasi lokal sederhana, tidak memutus koneksi internet
+local fakeLagConnection
+local fakeLagHidden = {}
+local function SetFakeLag(enabled)
+    if fakeLagConnection then fakeLagConnection:Disconnect(); fakeLagConnection=nil end
+    for part, st in pairs(fakeLagHidden) do
+        if part and part.Parent then part.LocalTransparencyModifier=st end
+    end
+    fakeLagHidden={}
+    if enabled then
+        fakeLagConnection=RunService.RenderStepped:Connect(function()
+            if not Toggles.FakeLag then return end
+            local char=LocalPlayer.Character
+            if not char then return end
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    if fakeLagHidden[part] == nil then fakeLagHidden[part]=part.LocalTransparencyModifier end
+                    part.LocalTransparencyModifier = 0.15
+                end
+            end
+        end)
+    end
+end
+MoveGroup:AddToggle("FakeLag", {Text="Fake Lag", Default=false, Callback=function(v) Toggles.FakeLag=v; SetFakeLag(v) end})
+
+-- ==================================================
+-- MOD
+-- ==================================================
+local ModLeft = V5Tab:AddLeftGroupbox("🏃 MOVEMENT / 📡 NETWORK")
+local ModRight = V5Tab:AddRightGroupbox("📷 CAMERA / 🔦 FLASHLIGHT")
+
+-- NoHitbox
+local noHitboxConnection, noHitboxOriginal = nil, {}
+local function SetNoHitbox(enabled)
+    if noHitboxConnection then noHitboxConnection:Disconnect(); noHitboxConnection = nil end
+    local char = LocalPlayer.Character
+    if not char then return end
+    if enabled then
+        noHitboxOriginal = {}
+        noHitboxConnection = RunService.Heartbeat:Connect(function()
+            local c = LocalPlayer.Character
+            if not c or not Toggles.NoHitbox then return end
+            for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    if noHitboxOriginal[p] == nil then noHitboxOriginal[p] = p.CanTouch end
+                    p.CanTouch = false
+                end
+            end
+        end)
+    else
+        for p, v in pairs(noHitboxOriginal) do if p and p.Parent then p.CanTouch = v end end
+        noHitboxOriginal = {}
+    end
+end
+ModLeft:AddToggle("NoHitbox", {Text="No Hitbox", Default=false, Callback=function(v) Toggles.NoHitbox=v; SetNoHitbox(v) end})
+
+-- NoClip
+local noClipConnection, noClipOriginal = nil, {}
+local function SetNoClip(enabled)
+    if noClipConnection then noClipConnection:Disconnect(); noClipConnection=nil end
+    local char = LocalPlayer.Character
+    if not char then return end
+    if enabled then
+        noClipOriginal = {}
+        noClipConnection = RunService.Heartbeat:Connect(function()
+            local c=LocalPlayer.Character
+            if not c or not Toggles.NoClip then return end
+            for _,p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    if noClipOriginal[p]==nil then noClipOriginal[p]=p.CanCollide end
+                    p.CanCollide=false
+                end
+            end
+        end)
+    else
+        for p,v in pairs(noClipOriginal) do if p and p.Parent then p.CanCollide=v end end
+        noClipOriginal={}
+    end
+end
+ModLeft:AddToggle("NoClip", {Text="NoClip", Default=false, Callback=function(v) Toggles.NoClip=v; SetNoClip(v) end}):AddKeyPicker("NoClipKey", {Text="Tombol NoClip", Mode="Toggle", Default="V", SyncToggleState=true})
+
+-- Flashlight fix: pilih Tool flashlight lokal dan update light yang ada
+local flashlightConnection
+local function UpdateFlashlight()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local tool = char:FindFirstChild("Flashlight") or char:FindFirstChildWhichIsA("Tool")
+    if not tool or tool.Name ~= "Flashlight" then return end
+    local light = tool:FindFirstChildWhichIsA("SpotLight", true) or tool:FindFirstChildWhichIsA("PointLight", true)
+    if light then
+        light.Brightness = Options.FlashlightBrightness or 50
+        light.Range = Options.FlashlightRange or 16
+        if light:IsA("SpotLight") then light.Angle = Options.FlashlightAngle or 45 end
+    end
+end
+local FlashGroup=V5Tab:AddRightGroupbox("🔦 FLASHLIGHT")
+FlashGroup:AddToggle("FlashlightSettings", {Text="Pengaturan Senter", Default=false, Callback=function(v)
+    Toggles.FlashlightSettings=v
+    if flashlightConnection then flashlightConnection:Disconnect(); flashlightConnection=nil end
+    if v then flashlightConnection=RunService.Heartbeat:Connect(UpdateFlashlight) end
+end})
+FlashGroup:AddSlider("FlashlightBrightness", {Text="Kecerahan", Default=50, Min=0, Max=100, Rounding=1, Callback=function(v) Options.FlashlightBrightness=v end})
+FlashGroup:AddSlider("FlashlightRange", {Text="Jangkauan", Default=16, Min=1, Max=100, Rounding=1, Callback=function(v) Options.FlashlightRange=v end})
+FlashGroup:AddSlider("FlashlightAngle", {Text="Sudut", Default=45, Min=1, Max=120, Rounding=1, Callback=function(v) Options.FlashlightAngle=v end})
+
+-- Camera Modifier: basis CameraBlock dari script V1 yang dipilih
+local cameraModifierConnection
+local CameraBlock
+local smoothedPos
+local STIFFNESS_DEFAULT=6
+local CAMERA_HEIGHT_DEFAULT=-3
+local function CleanupCameraBlock()
+    if cameraModifierConnection then
+        cameraModifierConnection:Disconnect()
+        cameraModifierConnection=nil
+    end
+    if CameraBlock then
+        CameraBlock:Destroy()
+        CameraBlock=nil
+    end
+    local hum=GetHumanoid()
+    if hum and Camera then
+        Camera.CameraSubject=hum
+    end
+end
+local function SetupCameraModifier()
+    CleanupCameraBlock()
+    local character=LocalPlayer.Character
+    local hum=character and character:FindFirstChildOfClass("Humanoid")
+    local head=character and character:FindFirstChild("Head")
+    if not character or not hum or not head then return end
+    CameraBlock=Instance.new("Part")
+    CameraBlock.Name="CameraBlock"
+    CameraBlock.Size=Vector3.new(1,1,1)
+    CameraBlock.Transparency=1
+    CameraBlock.LocalTransparencyModifier=1
+    CameraBlock.CastShadow=false
+    CameraBlock.CanQuery=false
+    CameraBlock.CanTouch=false
+    CameraBlock.CanCollide=false
+    CameraBlock.Anchored=true
+    CameraBlock.Parent=Workspace
+    smoothedPos=head.Position+Vector3.new(0,hum.HipHeight-(Options.CameraHeight or CAMERA_HEIGHT_DEFAULT),0)
+    cameraModifierConnection=RunService.RenderStepped:Connect(function(dt)
+        if not Toggles.CameraModifier then return end
+        local c=LocalPlayer.Character
+        local h=c and c:FindFirstChild("Head")
+        local hm=c and c:FindFirstChildOfClass("Humanoid")
+        if not h or not hm or not CameraBlock then return end
+        local targetPos=h.Position+Vector3.new(0,hm.HipHeight-(Options.CameraHeight or CAMERA_HEIGHT_DEFAULT),0)
+        local alpha=1-math.exp(-(Options.Stiffness or STIFFNESS_DEFAULT)*dt)
+        smoothedPos=smoothedPos:Lerp(targetPos,alpha)
+        CameraBlock.CFrame=CFrame.new(smoothedPos)
+        Camera.CameraSubject=CameraBlock
+    end)
+end
+local CameraGroup=V5Tab:AddRightGroupbox("📷 CAMERA")
+CameraGroup:AddToggle("CameraModifier", {Text="Camera Modifier", Default=false, Callback=function(v)
+    Toggles.CameraModifier=v
+    if v then SetupCameraModifier() else CleanupCameraBlock() end
+end})
+CameraGroup:AddSlider("Stiffness", {Text="STIFFNESS", Default=6, Min=1, Max=20, Rounding=1, Callback=function(v) Options.Stiffness=v end})
+CameraGroup:AddSlider("CameraHeight", {Text="CAMERA HEIGHT", Default=-3, Min=-30, Max=10, Rounding=1, Callback=function(v) Options.CameraHeight=v end})
+
+table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
+
+    if Toggles.SpeedUpV2 then
+        task.wait(0.5)
+        local char=LocalPlayer.Character
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed=Options.SpeedUpV2Value or 32 end
+    end    task.wait(0.4)
+    if Toggles.CameraModifier then SetupCameraModifier() end
+    if Toggles.NoHead then SetNoHead(true) end
+    if Toggles.OneLeg then SetOneLeg(true) end
+    if Toggles.SpeedUp then UpdateSpeed() end
+end))
+
+-- Mode 4:3
+ModRight:AddToggle("Aspect43", {Text="Mode 4:3", Default=false, Callback=function(v)
+    Toggles.Aspect43=v
+    if not v then return end
+    local conn
+    conn=RunService.RenderStepped:Connect(function()
+        if not Toggles.Aspect43 then conn:Disconnect(); return end
+        local cf=Camera.CFrame
+        local lv=cf.LookVector
+        Camera.CFrame=CFrame.lookAt(cf.Position, cf.Position+Vector3.new(lv.X, lv.Y*0.70, lv.Z))
+    end)
+    table.insert(Connections, conn)
+end})
+
+-- 8-Bit Royal Crown
+-- Metode pemasangan dibuat mengikuti China Hat: Part lokal + SpecialMesh + Weld.
+local ROYAL_CROWN_MESH_ID = "rbxassetid://10138606900"
+local ROYAL_CROWN_TEXTURE_ID = "rbxassetid://10138606949"
+
+local function RemoveRoyalCrown()
+    local c = LocalPlayer.Character
+    local crown = c and c:FindFirstChild("8BitRoyalCrown")
+    if crown then crown:Destroy() end
+end
+
+local function CreateRoyalCrown()
+    local c = LocalPlayer.Character
+    if not c then return end
+
+    local head = c:FindFirstChild("Head")
+    if not head then return end
+
+    RemoveRoyalCrown()
+
+    local handle = Instance.new("Part")
+    handle.Name = "8BitRoyalCrown"
+    handle.Size = Vector3.new(3, 1.5, 3)
+    handle.Anchored = false
+    handle.CanCollide = false
+    handle.CanTouch = false
+    handle.CanQuery = false
+    handle.Massless = true
+    handle.CastShadow = false
+    handle.Transparency = 0
+
+    local mesh = Instance.new("SpecialMesh")
+    mesh.MeshType = Enum.MeshType.FileMesh
+    mesh.MeshId = ROYAL_CROWN_MESH_ID
+    mesh.TextureId = ROYAL_CROWN_TEXTURE_ID
+    mesh.Scale = Vector3.new(2.2, 2.2, 2.2)
+    mesh.Parent = handle
+
+    -- Posisi dasar mengikuti pola China Hat.
+    handle.CFrame = head.CFrame * CFrame.new(0, 0.55, 0)
+
+    local weld = Instance.new("Weld")
+    weld.Name = "RoyalCrownWeld"
+    weld.Part0 = head
+    weld.Part1 = handle
+    weld.C0 = CFrame.new(0, 0.55, 0)
+    weld.C1 = CFrame.new()
+    weld.Parent = handle
+
+    handle.Parent = c
+    handle.LocalTransparencyModifier = 0
+    -- Blue fire: layered so it looks closer to the original crown flame.
+    local fire = Instance.new("ParticleEmitter")
+    fire.Name = "RoyalCrownBlueFire"
+    fire.Texture = "rbxasset://textures/particles/fire_main.dds"
+    fire.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(235, 250, 255)),
+        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(70, 170, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 70, 255))
+    })
+    fire.LightEmission = 1
+    fire.LightInfluence = 0
+    fire.Rate = 22
+    fire.Lifetime = NumberRange.new(0.35, 0.8)
+    fire.Speed = NumberRange.new(0.3, 1.2)
+    fire.SpreadAngle = Vector2.new(25, 25)
+    fire.Rotation = NumberRange.new(0, 360)
+    fire.RotSpeed = NumberRange.new(-90, 90)
+    fire.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.25),
+        NumberSequenceKeypoint.new(0.35, 0.7),
+        NumberSequenceKeypoint.new(0.8, 0.45),
+        NumberSequenceKeypoint.new(1, 0)
+    })
+    fire.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.05),
+        NumberSequenceKeypoint.new(0.75, 0.25),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    fire.Parent = handle
+
+    local fireGlow = Instance.new("PointLight")
+    fireGlow.Name = "RoyalCrownBlueFireGlow"
+    fireGlow.Color = Color3.fromRGB(70, 150, 255)
+    fireGlow.Brightness = 1.2
+    fireGlow.Range = 7
+    fireGlow.Shadows = false
+    fireGlow.Parent = handle
+
+end
+
+VisLeft2:AddToggle("Bit8Head", {
+    Text = "8-Bit Royal Crown",
+    Default = false,
+    Callback = function(v)
+        Toggles.Bit8Head = v
+        if v then
+            CreateRoyalCrown()
+        else
+            RemoveRoyalCrown()
+        end
+    end
+})
+
+-- LEG EFFECTS: satu toggle untuk kedua kaki, 7 pilihan, tanpa Image ID
+local legEffectObjects={}
+local LEG_EFFECTS={"Fire","Electric","Smoke","Spark","Void","Frost","Energy"}
+
+local function ClearLegEffects()
+    for _,o in ipairs(legEffectObjects) do
+        if o and o.Parent then o:Destroy() end
+    end
+    table.clear(legEffectObjects)
+end
+
+local function FindLegs()
+    local c=LocalPlayer.Character
+    if not c then return {} end
+    local r={}
+    local found={}
+    for _,n in ipairs({"LeftFoot","RightFoot","LeftLowerLeg","RightLowerLeg","Left Leg","Right Leg"}) do
+        local p=c:FindFirstChild(n,true)
+        if p and p:IsA("BasePart") and not found[p] then
+            found[p]=true
+            table.insert(r,p)
+        end
+    end
+    return r
+end
+
+local function LegColor(mode)
+    local colors={
+        Fire=Color3.fromRGB(255,95,20),
+        Electric=Color3.fromRGB(90,180,255),
+        Smoke=Color3.fromRGB(120,125,140),
+        Spark=Color3.fromRGB(255,225,80),
+        Void=Color3.fromRGB(110,35,180),
+        Frost=Color3.fromRGB(170,235,255),
+        Energy=Color3.fromRGB(65,255,175)
+    }
+    return colors[mode] or colors.Fire
+end
+
+local function LegTexture(mode)
+    if mode=="Fire" then return "rbxasset://textures/particles/fire_main.dds" end
+    if mode=="Smoke" then return "rbxasset://textures/particles/smoke_main.dds" end
+    return "rbxasset://textures/particles/sparkles_main.dds"
+end
+
+local function CreateLegEffect(leg,mode)
+    local a=Instance.new("Attachment")
+    a.Name="V1_LegEffect"
+    a.Position=Vector3.new(0,-0.35,0)
+    a.Parent=leg
+    table.insert(legEffectObjects,a)
+
+    local pe=Instance.new("ParticleEmitter")
+    pe.Name="V1_LegParticles"
+    pe.Texture=LegTexture(mode)
+    pe.Color=ColorSequence.new(LegColor(mode))
+    pe.LightEmission=1
+    pe.LightInfluence=0
+    pe.Rate=14
+    pe.Lifetime=NumberRange.new(0.25,0.7)
+    pe.Speed=NumberRange.new(0.15,1.1)
+    pe.SpreadAngle=Vector2.new(30,30)
+    pe.Size=NumberSequence.new({
+        NumberSequenceKeypoint.new(0,0.3),
+        NumberSequenceKeypoint.new(0.5,0.6),
+        NumberSequenceKeypoint.new(1,0)
+    })
+    pe.Transparency=NumberSequence.new({
+        NumberSequenceKeypoint.new(0,0.05),
+        NumberSequenceKeypoint.new(1,1)
+    })
+    pe.Parent=a
+    table.insert(legEffectObjects,pe)
+
+    local glow=Instance.new("PointLight")
+    glow.Name="V1_LegGlow"
+    glow.Color=LegColor(mode)
+    glow.Brightness=0.35
+    glow.Range=3
+    glow.Shadows=false
+    glow.Parent=leg
+    table.insert(legEffectObjects,glow)
+end
+
+local function SetLegEffects(v)
+    ClearLegEffects()
+    if not v then return end
+    local mode=Options.LegEffectType or "Fire"
+    for _,leg in ipairs(FindLegs()) do
+        CreateLegEffect(leg,mode)
+    end
+end
+
+local EffectsGroup=V5Tab:AddLeftGroupbox("✨ EFFECTS")
+EffectsGroup:AddToggle("LegEffects",{
+    Text="Leg Effects",
+    Default=false,
+    Callback=function(v)
+        Toggles.LegEffects=v
+        SetLegEffects(v)
+    end
+})
+EffectsGroup:AddDropdown("LegEffectType",{
+    Values=LEG_EFFECTS,
+    Default="Fire",
+    Text="Jenis Efek",
+    Callback=function(v)
+        Options.LegEffectType=v
+        if Toggles.LegEffects then SetLegEffects(true) end
+    end
+})
+table.insert(Connections,LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    if Toggles.Bit8Head then CreateRoyalCrown() end
+    if Toggles.LegEffects then SetLegEffects(true) end
+end))
+
+-- HAND LASER: SATU SISTEM SAJA, KOSMETIK, SELALU LURUS KE BAWAH
+local handLaserPart
+local handLaserAttachment0
+local handLaserAttachment1
+local handLaserBeam
+local handLaserConnection
+
+-- Black hole berada DI TENGAH garis laser, bukan di ujung.
+local blackHole
+local blackHoleRing
+local blackHoleStars
+local blackHoleConnection
+
+local function GetRightHand()
+    local c=LocalPlayer.Character
+    if not c then return nil end
+    return c:FindFirstChild("RightHand")
+        or c:FindFirstChild("Right Arm")
+        or c:FindFirstChild("RightLowerArm")
+        or c:FindFirstChild("RightUpperArm")
+end
+
+local function ClearHandLaser()
+    if handLaserConnection then
+        handLaserConnection:Disconnect()
+        handLaserConnection=nil
+    end
+    if blackHoleConnection then
+        blackHoleConnection:Disconnect()
+        blackHoleConnection=nil
+    end
+    for _,o in ipairs({
+        handLaserBeam,handLaserAttachment0,handLaserAttachment1,handLaserPart,
+        blackHole,blackHoleRing,blackHoleStars
+    }) do
+        if o and o.Parent then o:Destroy() end
+    end
+    handLaserBeam=nil
+    handLaserAttachment0=nil
+    handLaserAttachment1=nil
+    handLaserPart=nil
+    blackHole=nil
+    blackHoleRing=nil
+    blackHoleStars=nil
+end
+
+local function CreateBlackHole(center)
+    local hole=Instance.new("Part")
+    hole.Name="CosmeticBlackHole"
+    hole.Shape=Enum.PartType.Ball
+    hole.Size=Vector3.new(1.6,1.6,1.6)
+    hole.Material=Enum.Material.Neon
+    hole.Color=Color3.fromRGB(3,3,8)
+    hole.Transparency=0.05
+    hole.Anchored=true
+    hole.CanCollide=false
+    hole.CanTouch=false
+    hole.CanQuery=false
+    hole.CastShadow=false
+    hole.CFrame=CFrame.new(center)
+    hole.Parent=workspace
+    blackHole=hole
+
+    local ring=Instance.new("Part")
+    ring.Name="BlackHolePurpleRing"
+    ring.Shape=Enum.PartType.Cylinder
+    ring.Size=Vector3.new(0.06,3.2,3.2)
+    ring.Material=Enum.Material.Neon
+    ring.Color=Color3.fromRGB(175,0,255)
+    ring.Transparency=0.18
+    ring.Anchored=true
+    ring.CanCollide=false
+    ring.CanTouch=false
+    ring.CanQuery=false
+    ring.CastShadow=false
+    ring.Parent=workspace
+    blackHoleRing=ring
+
+    local stars=Instance.new("Folder")
+    stars.Name="BlackHoleStars"
+    stars.Parent=workspace
+    blackHoleStars=stars
+
+    for i=1,7 do
+        local star=Instance.new("Part")
+        star.Name="OrbitStar"
+        star.Shape=Enum.PartType.Ball
+        star.Size=Vector3.new(0.12,0.12,0.12)
+        star.Material=Enum.Material.Neon
+        star.Color=Color3.fromRGB(220,230,255)
+        star.Anchored=true
+        star.CanCollide=false
+        star.CanTouch=false
+        star.CanQuery=false
+        star.CastShadow=false
+        star.Parent=stars
+    end
+end
+
+local function SetHandLaser(state)
+    ClearHandLaser()
+    if not state or not Toggles.HandLaser then return end
+
+    local hand=GetRightHand()
+    if not hand then return end
+
+    local a0=Instance.new("Attachment")
+    a0.Name="CosmeticLaserOrigin"
+    a0.Position=Vector3.new(0,-0.45,-0.15)
+    a0.Parent=hand
+    handLaserAttachment0=a0
+
+    local endpoint=Instance.new("Part")
+    endpoint.Name="CosmeticLaserEnd"
+    endpoint.Size=Vector3.new(0.1,0.1,0.1)
+    endpoint.Transparency=1
+    endpoint.Anchored=true
+    endpoint.CanCollide=false
+    endpoint.CanTouch=false
+    endpoint.CanQuery=false
+    endpoint.Parent=workspace
+    handLaserPart=endpoint
+
+    local a1=Instance.new("Attachment")
+    a1.Name="CosmeticLaserEndAttachment"
+    a1.Parent=endpoint
+    handLaserAttachment1=a1
+
+    local beam=Instance.new("Beam")
+    beam.Name="CosmeticHandBeam"
+    beam.Attachment0=a0
+    beam.Attachment1=a1
+    beam.FaceCamera=true
+    beam.LightEmission=1
+    beam.LightInfluence=0
+    beam.Transparency=NumberSequence.new(0.28)
+    beam.Width0=Options.LaserThickness or 0.08
+    beam.Width1=Options.LaserThickness or 0.08
+    beam.Color=ColorSequence.new(Color3.fromRGB(185,0,255))
+    beam.Parent=hand
+    handLaserBeam=beam
+
+    local laserLength=Options.LaserLength or 50
+    local blackHoleDistance=laserLength*0.5
+    local center=hand.Position+Vector3.new(0,-blackHoleDistance,0)
+    CreateBlackHole(center)
+
+    local startTime=os.clock()
+    handLaserConnection=RunService.RenderStepped:Connect(function()
+        local h=GetRightHand()
+        if not h or not endpoint.Parent then
+            ClearHandLaser()
+            return
+        end
+
+        local length=Options.LaserLength or 50
+
+        -- WAJIB vertikal ke bawah. Tidak mengikuti kamera/crosshair.
+        endpoint.CFrame=CFrame.new(h.Position+Vector3.new(0,-length,0))
+
+        local holeCenter=h.Position+Vector3.new(0,-length*0.5,0)
+        blackHole.CFrame=CFrame.new(holeCenter)
+
+        local t=os.clock()-startTime
+        blackHoleRing.CFrame=
+            CFrame.new(holeCenter) *
+            CFrame.Angles(0,t*2.2,math.rad(90))
+
+        local children=blackHoleStars:GetChildren()
+        for i,star in ipairs(children) do
+            local angle=t*(1.3+i*0.08)+(i/7)*math.pi*2
+            local radius=1.8+((i%2)*0.35)
+            star.CFrame=CFrame.new(
+                holeCenter+
+                Vector3.new(
+                    math.cos(angle)*radius,
+                    math.sin(angle*1.5)*0.25,
+                    math.sin(angle)*radius
+                )
+            )
+        end
+    end)
+end
+
+local LaserGroup=V5Tab:AddLeftGroupbox("🔮 LASER HIASAN")
+LaserGroup:AddToggle("HandLaser",{
+    Text="Laser Hiasan",
+    Default=false,
+    Callback=function(v)
+        Toggles.HandLaser=v
+        if not v then ClearHandLaser() end
+    end
+})
+
+LaserGroup:AddLabel("Tahan Klik Kanan untuk menampilkan efek")
+
+LaserGroup:AddSlider("LaserLength",{
+    Text="Panjang",
+    Default=50,
+    Min=5,
+    Max=200,
+    Rounding=1,
+    Callback=function(v)
+        Options.LaserLength=v
+    end
+})
+
+LaserGroup:AddSlider("LaserThickness",{
+    Text="Ketebalan",
+    Default=0.08,
+    Min=0.03,
+    Max=0.5,
+    Rounding=2,
+    Callback=function(v)
+        Options.LaserThickness=v
+    end
+})
+
+table.insert(Connections,UserInputService.InputBegan:Connect(function(input,processed)
+    if processed then return end
+    if input.UserInputType==Enum.UserInputType.MouseButton2
+        and Toggles.HandLaser then
+        SetHandLaser(true)
+    end
+end))
+
+table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton2 then
+        ClearHandLaser()
+    end
+end))
+
+-- Local 2D Front/Back Sky
+local skyFolder, skyConnection
+local FRONT_ID="rbxassetid://80856954747945"
+local SKY_DISTANCE=290
+local SKY_SIZE=350
+local function ClearLocalSky()
+    if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
+    if skyFolder then skyFolder:Destroy(); skyFolder=nil end
+end
+local function CreateLocalSky()
+    ClearLocalSky()
+    skyFolder=Instance.new("Folder")
+    skyFolder.Name="VexV_2D_FrontBack"
+    skyFolder.Parent=Workspace
+    local function createPlane(name,id)
+        local part=Instance.new("Part")
+        part.Name=name
+        part.Anchored=true
+        part.CanCollide=false
+        part.CanTouch=false
+        part.CanQuery=false
+        part.Transparency=1
+        part.Size=Vector3.new(SKY_SIZE,SKY_SIZE,0.1)
+        part.Parent=skyFolder
+        local decal=Instance.new("Decal")
+        decal.Name="Image"
+        decal.Texture=id
+        decal.Face=Enum.NormalId.Front
+        decal.Parent=part
+        return part
+    end
+    local front=createPlane("Front",FRONT_ID)
+        skyConnection=RunService.RenderStepped:Connect(function()
+        local cam=Workspace.CurrentCamera
+        if not cam or not skyFolder then return end
+        local cf=cam.CFrame
+        local pos=cf.Position
+        front.CFrame=CFrame.lookAt(pos+cf.LookVector*SKY_DISTANCE,pos)
+    end)
+end
+ModRight:AddToggle("LocalSky", {Text="Local 2D Sky", Default=false, Callback=function(v)
+    Toggles.LocalSky=v
+    if v then CreateLocalSky() else ClearLocalSky() end
+end})
+
+-- FPS Optimizer: opsi ringan, bisa dibalik
+local fpsOriginal = {}
+local function SetFPSOptimizer(enabled)
+    if not enabled then
+        for obj, state in pairs(fpsOriginal) do
+            if obj and obj.Parent then
+                pcall(function() obj.Enabled=state end)
+            end
+        end
+        fpsOriginal={}
+        return
+    end
+    fpsOriginal={}
+    for _,obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+            fpsOriginal[obj]=obj.Enabled
+            obj.Enabled=false
+        end
+    end
+end
+ModLeft:AddToggle("FPSOptimizer", {Text="FPS Optimizer", Default=false, Callback=function(v) Toggles.FPSOptimizer=v; SetFPSOptimizer(v) end})
+
+-- ==================================================
+-- [BAGIAN 2] KILLER
+-- ==================================================
+local KillerRight = V5Tab:AddRightGroupbox("🔪 KILLER")
+
+-- [KILLER] Combat & Ability
+KillerRight:AddToggle("NoPalletStun", {
+    Text = "No Pallet Stun",
+    Default = false,
+    Callback = function(val)
+        Toggles.NoPalletStun = val
+        if val then
+            local conn = RunService.Heartbeat:Connect(function()
+                if Toggles.NoPalletStun then
+                    local hum = GetHumanoid()
+                    if hum then hum:SetAttribute("NoStun", true) end
+                else
+                    conn:Disconnect()
+                end
+            end)
+            table.insert(Connections, conn)
+        end
+    end
+})
+
+KillerRight:AddToggle("SpearAimbot", {
+    Text = "Spear Aimbot",
+    Default = false,
+    Callback = function(val)
+        Toggles.SpearAimbot = val
+        if val then
+            local conn = RunService.Heartbeat:Connect(function()
+                if not Toggles.SpearAimbot then conn:Disconnect() return end
+                local target, dist = GetNearestPlayer()
+                if target and dist < 100 then
+                    local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
+                    if targetHrp then
+                        local pos, onScreen = Camera:WorldToScreenPoint(targetHrp.Position)
+                        if onScreen then
+                            pcall(function()
+                                local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                                if remotes and remotes.Killers and remotes.Killers.Veil then
+                                    local spear = remotes.Killers.Veil:FindFirstChild("Spearthrow")
+                                    if spear then spear:FireServer(targetHrp.Position) end
+                                end
+                            end)
+                        end
+                    end
+                end
+            end)
+            table.insert(Connections, conn)
+        end
+    end
+})
+
+KillerRight:AddToggle("AutoAttack", {
+    Text = "Auto Attack",
+    Default = false,
+    Callback = function(val)
+        Toggles.AutoAttack = val
+        if val then
+            local conn = RunService.Heartbeat:Connect(function()
+                if not Toggles.AutoAttack then conn:Disconnect() return end
+                local target, dist = GetNearestPlayer(Options.AutoAttackRange or 12)
+                if target then
+                    pcall(function()
+                        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes and remotes.Attacks and remotes.Attacks.BasicAttack then
+                            remotes.Attacks.BasicAttack:FireServer(false)
+                        end
+                    end)
+                    task.wait(0.2)
+                end
+            end)
+            table.insert(Connections, conn)
+        end
+    end
+})
+
+KillerRight:AddSlider("AutoAttackRange", {
+    Text = "Auto Attack Range",
+    Default = 12,
+    Min = 5,
+    Max = 25,
+    Rounding = 1,
+    Callback = function(val)
+        Options.AutoAttackRange = val
+    end
+})
+
+KillerRight:AddToggle("DoubleLunge", {
+    Text = "Double Lunge",
+    Default = false,
+    Callback = function(val)
+        Toggles.DoubleLunge = val
+        if val then
+            local conn = RunService.Heartbeat:Connect(function()
+                if not Toggles.DoubleLunge then conn:Disconnect() return end
+                local hrp = GetHumanoidRootPart()
+                if hrp then
+                    local target, dist = GetNearestPlayer()
+                    if target and dist < 20 then
+                        local dir = (target.Character.HumanoidRootPart.Position - hrp.Position).Unit
+                        hrp.Velocity = dir * 100
+                        task.wait(0.1)
+                        hrp.Velocity = dir * 100
+                    end
+                end
+            end)
+            table.insert(Connections, conn)
+        end
+    end
+})
+
+-- ==================================================
+local GENERATOR_ICON_SCALE = 1.5
+
+-- HUD
+-- ==================================================
+local HUDGroup=V5Tab:AddRightGroupbox("🖥️ HUD")
+HUDGroup:AddToggle("HUDEnabled", {
+    Text = "HUD",
+    Default = false,
+    Callback = function(v)
+        Toggles.HUDEnabled = v
+        if not v then
+            hudLocked = {}
+            hudLastHook = {}
+            hudLastProgress = {}
+        end
+    end
+})
+HUDGroup:AddLabel("Healthy / Hurt / Down / Hook / Escape / Disconnect / Dead / Broken")
+HUDGroup:AddLabel("Generator / Item Icons / Status Amount Removal")
+
+local HEALTHY_ICON="rbxassetid://109605592074068"
+local HURT_ICON="rbxassetid://83411221382159"
+local DOWN_ICON="rbxassetid://81153787472276"
+local HOOK_ICON="rbxassetid://81319630134883"
+local ESCAPE_ICON="rbxassetid://139225871500448"
+local DISCONNECT_ICON="rbxassetid://88565816558378"
+local DEAD_ICON="rbxassetid://135865638053237"
+local BROKEN_ICON="rbxassetid://126119813392957"
+local MEDKIT_ICON="rbxassetid://1802199461"
+local FLASHLIGHT_ICON="rbxassetid://1802197241"
+local GEN_ICON="rbxassetid://76292398357985"
+local hudConnections={}
+local hudStatusHooked={}
+local hudLocked={}
+local hudLastHook={}
+local hudLastProgress={}
+local function hudTrack(c) table.insert(hudConnections,c) end
+local function removeAmountText(frame)
+    if not frame or frame:GetAttribute("VexVAmountHooked") then return end
+    frame:SetAttribute("VexVAmountHooked",true)
+    local function apply(label)
+        if not label:IsA("TextLabel") then return end
+        label.Text=""; label.Visible=false
+        hudTrack(label:GetPropertyChangedSignal("Text"):Connect(function() if label.Text~="" then label.Text="" end end))
+        hudTrack(label:GetPropertyChangedSignal("Visible"):Connect(function() if label.Visible then label.Visible=false end end))
+    end
+    local amount=frame:FindFirstChild("amount")
+    if amount then apply(amount) end
+    hudTrack(frame.ChildAdded:Connect(function(child) if child.Name=="amount" then apply(child) end end))
+end
+local function hookStatusEffects(survivor)
+    if hudStatusHooked[survivor] then return end
+    hudStatusHooked[survivor]=true
+    local function process(status)
+        for _,folderName in ipairs({"Buff","Debuff"}) do
+            local folder=status:FindFirstChild(folderName)
+            local function hookFolder(f)
+                for name in pairs({Repairboost=true,Repairnerf=true,Slow=true,Speed=true}) do
+                    local frame=f:FindFirstChild(name)
+                    if frame then removeAmountText(frame) end
+                end
+                hudTrack(f.ChildAdded:Connect(function(child)
+                    if child.Name=="Repairboost" or child.Name=="Repairnerf" or child.Name=="Slow" or child.Name=="Speed" then removeAmountText(child) end
+                end))
+            end
+            if folder then hookFolder(folder) else hudTrack(status.ChildAdded:Connect(function(child) if child.Name==folderName then hookFolder(child) end end)) end
+        end
+    end
+    local status=survivor:FindFirstChild("statuseffects")
+    if status then process(status) else hudTrack(survivor.ChildAdded:Connect(function(c) if c.Name=="statuseffects" then process(c) end end)) end
+end
+local function cacheHudPlayer(p,name)
+    if not p then return end
+    local hc=p:GetAttribute("HookCount")
+    local hp=p:GetAttribute("HookedProgress")
+    if hc~=nil then
+        hudLastHook[name]=hc
+        hudLastProgress[name]=hp or 1
+    end
+end
+local function updateHudIcons()
+    if not Toggles.HUDEnabled then return end
+    local gui=LocalPlayer:FindFirstChild("PlayerGui")
+    local survivor=gui and gui:FindFirstChild("Survivor")
+    if not survivor then return end
+    hookStatusEffects(survivor)
+    local frame=survivor:FindFirstChild("Frame")
+    if not frame then return end
+    for i=1,5 do
+        local slot=frame:FindFirstChild("Survivor"..i)
+        if slot then
+            local avatar=slot:FindFirstChild("ImageLabel")
+            local nameLabel=slot:FindFirstChild("TextLabel")
+            local blood=slot:FindFirstChild("blood")
+            local anti=slot:FindFirstChild("Antiheal")
+            if anti and anti:IsA("ImageLabel") then anti.Image=BROKEN_ICON end
+            if avatar and nameLabel and nameLabel.Text~="" and nameLabel.Text~="Label" then
+                local name=nameLabel.Text
+                local p=Players:FindFirstChild(name)
+                local char=p and Workspace:FindFirstChild(name)
+                if p then cacheHudPlayer(p,name) end
+                local hc=p and p:GetAttribute("HookCount") or (char and char:GetAttribute("HookCount"))
+                local hp=p and p:GetAttribute("HookedProgress") or (char and char:GetAttribute("HookedProgress"))
+                if hc~=nil then hudLastHook[name]=hc; hudLastProgress[name]=hp or 1 end
+                local icon=HEALTHY_ICON
+                if hudLocked[name] then
+                    icon=hudLocked[name]
+                elseif not p then
+                    icon=DISCONNECT_ICON
+                    if hudLastHook[name]~=nil then hudLocked[name]=icon end
+                elseif p.Team and p.Team.Name=="Spectators" then
+                    if (hudLastHook[name] or hc or 0)>=3 or (hudLastProgress[name] or hp or 1)<=0 then icon=DEAD_ICON else icon=ESCAPE_ICON end
+                    if hudLastHook[name]~=nil then hudLocked[name]=icon end
+                elseif (hc or 0)>=3 or (hp or 1)<=0 then
+                    icon=DEAD_ICON
+                    hudLocked[name]=icon
+                elseif char and char:GetAttribute("IsHooked") then
+                    icon=HOOK_ICON
+                elseif char and char:GetAttribute("Knocked") then
+                    icon=DOWN_ICON
+                elseif blood and blood.Visible then
+                    icon=HURT_ICON
+                end
+                avatar.Image=icon
+                avatar.ImageColor3=Color3.fromRGB(255,255,255)
+                if not avatar:GetAttribute("VexVHudSized") then
+                    avatar.Size=UDim2.new(avatar.Size.X.Scale*1.15,avatar.Size.X.Offset*1.15,avatar.Size.Y.Scale*1.15,avatar.Size.Y.Offset*1.15)
+                    avatar.ImageTransparency=0
+                    avatar:SetAttribute("VexVHudSized",true)
+                end
+            end
+        end
+    end
+    local gen=survivor:FindFirstChild("Gen")
+    local genholder=gen and gen:FindFirstChild("genholder")
+    local genImage=genholder and genholder:FindFirstChild("ImageLabel")
+    if genImage and genImage:IsA("ImageLabel") then
+        genImage.Image=GEN_ICON
+        genImage.ScaleType=Enum.ScaleType.Fit
+        genImage.ImageTransparency=0
+        if not genImage:GetAttribute("VexVGeneratorSized") then
+            genImage.Size=UDim2.new(genImage.Size.X.Scale*1.5,genImage.Size.X.Offset*1.5,genImage.Size.Y.Scale*1.5,genImage.Size.Y.Offset*1.5)
+            genImage:SetAttribute("VexVGeneratorSized",true)
+        end
+    end
+    local itemFrame=gen and gen:FindFirstChild("ItemFrame")
+    local itemGui=itemFrame and itemFrame:FindFirstChild("Gui")
+    local char=LocalPlayer.Character
+    if itemGui and itemGui:IsA("ImageLabel") and char then
+        if char:FindFirstChild("Bandage") then itemGui.Image=MEDKIT_ICON elseif char:FindFirstChild("Flashlight") then itemGui.Image=FLASHLIGHT_ICON end
+    end
+end
+hudTrack(RunService.Heartbeat:Connect(updateHudIcons))
+hudTrack(LocalPlayer.CharacterAdded:Connect(function() hudLocked={}; hudLastHook={}; hudLastProgress={}; hudStatusHooked={} end))
+
+-- ==================================================
+-- [BAGIAN 4] UI / MENU
+-- ==================================================
+-- [GROUP] Menu
+local UILeft = V5Tab:AddLeftGroupbox("⚙️ MENU")
+-- [KONTROL] Unload
+UILeft:AddButton("Unload", function()
+    Toggles.CameraModifier=false
+    CleanupCameraBlock()
+    if speedConnection then speedConnection:Disconnect(); speedConnection=nil end
+    if noSlowConnection then noSlowConnection:Disconnect(); noSlowConnection=nil end
+    if noFallConnection then noFallConnection:Disconnect(); noFallConnection=nil end
+    if fakeLagConnection then fakeLagConnection:Disconnect(); fakeLagConnection=nil end
+    ClearLocalSky()
+    for _, conn in ipairs(hudConnections) do pcall(conn.Disconnect, conn) end
+    for _, conn in ipairs(Connections) do pcall(conn.Disconnect, conn) end
+    Gui:Destroy()
+end)
+
+-- [KONTROL] Tombol Menu
+UILeft:AddLabel("Tombol Menu"):AddKeyPicker("MenuKeybind", {
+    NoUI = true,
+    Default = "RightShift",
+    Text = "Tombol Menu"
+})
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- Custom GUI has no external ThemeManager/SaveManager dependency.
