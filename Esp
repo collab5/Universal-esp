@@ -731,7 +731,10 @@ local CAMERA_FILTERS={
     ["Purple"]={tint=Color3.fromRGB(225,205,255),brightness=0,contrast=0.12,saturation=0.1},
     ["Red"]={tint=Color3.fromRGB(255,200,200),brightness=-0.01,contrast=0.1,saturation=0.05},
     ["Night"]={tint=Color3.fromRGB(175,205,255),brightness=-0.12,contrast=0.16,saturation=-0.2},
-    ["Cinematic"]={tint=Color3.fromRGB(220,230,255),brightness=-0.03,contrast=0.2,saturation=-0.08}
+    ["Cinematic"]={tint=Color3.fromRGB(220,230,255),brightness=-0.03,contrast=0.2,saturation=-0.08},
+    -- Roblox ColorCorrection tidak punya true color-invert.
+    -- Preset ini dibuat sebagai efek "negative-style" yang kontras/terbalik secara visual.
+    ["Negative"]={tint=Color3.fromRGB(180,210,255),brightness=0.08,contrast=0.75,saturation=-0.65}
 }
 local function ClearCameraFilter()
     if cameraFilterEffect then
@@ -758,7 +761,7 @@ CameraFilterGroup:AddToggle("CameraFilter", {Text="Camera Filter", Default=false
     if v then ApplyCameraFilter() else ClearCameraFilter() end
 end})
 CameraFilterGroup:AddDropdown("CameraFilterPreset", {
-    Values={"Normal","Black & White","Cool","Warm","Purple","Red","Night","Cinematic"},
+    Values={"Normal","Black & White","Cool","Warm","Purple","Red","Night","Cinematic","Negative"},
     Default="Normal",
     Text="Preset Filter",
     Callback=function(v)
@@ -1255,12 +1258,13 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
--- LOCAL 2D SKY: hanya bidang DEPAN + BELAKANG, mengikuti arah kamera.
+-- LOCAL 2D SKY: hanya bidang DEPAN + BELAKANG.
+-- Fix: pakai SurfaceGui + ImageLabel agar gambar tetap dirender walau bidang dasarnya transparan.
 local skyFolder, skyConnection
 local FRONT_ID="rbxassetid://89274460160335" -- Ft
 local BACK_ID="rbxassetid://75381350570426"   -- Bk
-local SKY_DISTANCE=290
-local SKY_SIZE=350
+local SKY_DISTANCE=65
+local SKY_SIZE=140
 
 local function ClearLocalSky()
     if skyConnection then
@@ -1289,17 +1293,31 @@ local function CreateLocalSky()
         part.CanCollide=false
         part.CanTouch=false
         part.CanQuery=false
-        part.Transparency=1
         part.CastShadow=false
-        part.Size=Vector3.new(SKY_SIZE,SKY_SIZE,0.1)
+        part.Transparency=1
+        part.Size=Vector3.new(SKY_SIZE,SKY_SIZE,0.2)
         part.Parent=skyFolder
 
-        local decal=Instance.new("Decal")
-        decal.Name="Image"
-        decal.Texture=id
-        decal.Face=Enum.NormalId.Front
-        decal.Transparency=0
-        decal.Parent=part
+        local surface=Instance.new("SurfaceGui")
+        surface.Name="SkyImage"
+        surface.Face=Enum.NormalId.Front
+        surface.AlwaysOnTop=true
+        surface.LightInfluence=0
+        surface.SizingMode=Enum.SurfaceGuiSizingMode.PixelsPerStud
+        surface.PixelsPerStud=8
+        surface.Parent=part
+
+        local image=Instance.new("ImageLabel")
+        image.Name="Image"
+        image.BackgroundTransparency=1
+        image.BorderSizePixel=0
+        image.Size=UDim2.fromScale(1,1)
+        image.Position=UDim2.fromScale(0,0)
+        image.Image=id
+        image.ImageTransparency=0
+        image.ScaleType=Enum.ScaleType.Stretch
+        image.Parent=surface
+
         return part
     end
 
@@ -1314,11 +1332,10 @@ local function CreateLocalSky()
         local pos=cf.Position
         local look=cf.LookVector
 
-        -- Bidang depan selalu berada di depan kamera.
+        -- Front selalu dekat dan menghadap kamera.
         front.CFrame=CFrame.lookAt(pos + look*SKY_DISTANCE, pos)
 
-        -- Bidang belakang selalu berada di belakang kamera.
-        -- Diputar menghadap kamera supaya decal tetap terlihat dari dalam.
+        -- Back selalu dekat di belakang kamera dan juga menghadap kamera.
         back.CFrame=CFrame.lookAt(pos - look*SKY_DISTANCE, pos)
     end)
 end
