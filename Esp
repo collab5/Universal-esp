@@ -1259,12 +1259,12 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
 end))
 
 -- LOCAL 2D SKY: hanya bidang DEPAN + BELAKANG.
--- Fix: pakai SurfaceGui + ImageLabel agar gambar tetap dirender walau bidang dasarnya transparan.
+-- Robust 2D renderer: BillboardGui untuk menjamin gambar asset tetap terlihat.
 local skyFolder, skyConnection
 local FRONT_ID="rbxassetid://89274460160335" -- Ft
 local BACK_ID="rbxassetid://75381350570426"   -- Bk
-local SKY_DISTANCE=65
-local SKY_SIZE=140
+local SKY_DISTANCE=45
+local SKY_SIZE=110
 
 local function ClearLocalSky()
     if skyConnection then
@@ -1279,8 +1279,6 @@ end
 
 local function CreateLocalSky()
     ClearLocalSky()
-    StopCinematic()
-    ClearVisualHitbox()
 
     skyFolder=Instance.new("Folder")
     skyFolder.Name="VexV_2D_FrontBack"
@@ -1295,28 +1293,29 @@ local function CreateLocalSky()
         part.CanQuery=false
         part.CastShadow=false
         part.Transparency=1
-        part.Size=Vector3.new(SKY_SIZE,SKY_SIZE,0.2)
+        part.Size=Vector3.new(1,1,1)
         part.Parent=skyFolder
 
-        local surface=Instance.new("SurfaceGui")
-        surface.Name="SkyImage"
-        surface.Face=Enum.NormalId.Front
-        surface.AlwaysOnTop=true
-        surface.LightInfluence=0
-        surface.SizingMode=Enum.SurfaceGuiSizingMode.PixelsPerStud
-        surface.PixelsPerStud=8
-        surface.Parent=part
+        -- BillboardGui é realmente 2D e não depende da face do Part.
+        local billboard=Instance.new("BillboardGui")
+        billboard.Name="SkyImage"
+        billboard.Adornee=part
+        billboard.AlwaysOnTop=true
+        billboard.LightInfluence=0
+        billboard.MaxDistance=100000
+        billboard.Size=UDim2.fromOffset(SKY_SIZE*8,SKY_SIZE*8)
+        billboard.StudsOffset=Vector3.new(0,0,0)
+        billboard.Parent=part
 
         local image=Instance.new("ImageLabel")
         image.Name="Image"
         image.BackgroundTransparency=1
         image.BorderSizePixel=0
         image.Size=UDim2.fromScale(1,1)
-        image.Position=UDim2.fromScale(0,0)
         image.Image=id
         image.ImageTransparency=0
         image.ScaleType=Enum.ScaleType.Stretch
-        image.Parent=surface
+        image.Parent=billboard
 
         return part
     end
@@ -1332,11 +1331,9 @@ local function CreateLocalSky()
         local pos=cf.Position
         local look=cf.LookVector
 
-        -- Front selalu dekat dan menghadap kamera.
-        front.CFrame=CFrame.lookAt(pos + look*SKY_DISTANCE, pos)
-
-        -- Back selalu dekat di belakang kamera dan juga menghadap kamera.
-        back.CFrame=CFrame.lookAt(pos - look*SKY_DISTANCE, pos)
+        -- Dua bidang mengikuti kamera, dekat agar mudah terlihat.
+        front.CFrame=CFrame.new(pos + look*SKY_DISTANCE)
+        back.CFrame=CFrame.new(pos - look*SKY_DISTANCE)
     end)
 end
 
