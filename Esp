@@ -1258,82 +1258,82 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
--- LOCAL 2D SKY: hanya bidang DEPAN + BELAKANG.
--- Robust 2D renderer: BillboardGui untuk menjamin gambar asset tetap terlihat.
+-- LOCAL 2D SKY: versi 1 ID, satu bidang mengikuti kamera.
+-- Dipertahankan sebagai backdrop 2D, bukan Roblox Sky 6 sisi dan bukan Front/Back.
 local skyFolder, skyConnection
-local FRONT_ID="rbxassetid://89274460160335" -- Ft
-local BACK_ID="rbxassetid://75381350570426"   -- Bk
-local SKY_DISTANCE=45
-local SKY_SIZE=110
+local FRONT_ID = "rbxassetid://80856954747945"
+local SKY_DISTANCE = 110
+local SKY_MIN_SIZE = 140
+local SKY_MAX_SIZE = 2000
 
 local function ClearLocalSky()
     if skyConnection then
         skyConnection:Disconnect()
-        skyConnection=nil
+        skyConnection = nil
     end
     if skyFolder then
         skyFolder:Destroy()
-        skyFolder=nil
+        skyFolder = nil
     end
 end
 
 local function CreateLocalSky()
     ClearLocalSky()
 
-    skyFolder=Instance.new("Folder")
-    skyFolder.Name="VexV_2D_FrontBack"
-    skyFolder.Parent=Workspace
+    skyFolder = Instance.new("Folder")
+    skyFolder.Name = "V1_Local2DSky"
+    skyFolder.Parent = Workspace
 
-    local function createPlane(name,id)
-        local part=Instance.new("Part")
-        part.Name=name
-        part.Anchored=true
-        part.CanCollide=false
-        part.CanTouch=false
-        part.CanQuery=false
-        part.CastShadow=false
-        part.Transparency=1
-        part.Size=Vector3.new(1,1,1)
-        part.Parent=skyFolder
+    local plane = Instance.new("Part")
+    plane.Name = "SkyImagePlane"
+    plane.Anchored = true
+    plane.CanCollide = false
+    plane.CanTouch = false
+    plane.CanQuery = false
+    plane.CastShadow = false
+    plane.Material = Enum.Material.SmoothPlastic
+    plane.Transparency = 0
+    plane.Color = Color3.new(1,1,1)
+    plane.Size = Vector3.new(SKY_MIN_SIZE, SKY_MIN_SIZE, 0.05)
+    plane.Parent = skyFolder
 
-        -- BillboardGui é realmente 2D e não depende da face do Part.
-        local billboard=Instance.new("BillboardGui")
-        billboard.Name="SkyImage"
-        billboard.Adornee=part
-        billboard.AlwaysOnTop=true
-        billboard.LightInfluence=0
-        billboard.MaxDistance=100000
-        billboard.Size=UDim2.fromOffset(SKY_SIZE*8,SKY_SIZE*8)
-        billboard.StudsOffset=Vector3.new(0,0,0)
-        billboard.Parent=part
+    local decal = Instance.new("Decal")
+    decal.Name = "SkyImage"
+    decal.Texture = FRONT_ID
+    decal.Face = Enum.NormalId.Front
+    decal.Transparency = 0
+    decal.Parent = plane
 
-        local image=Instance.new("ImageLabel")
-        image.Name="Image"
-        image.BackgroundTransparency=1
-        image.BorderSizePixel=0
-        image.Size=UDim2.fromScale(1,1)
-        image.Image=id
-        image.ImageTransparency=0
-        image.ScaleType=Enum.ScaleType.Stretch
-        image.Parent=billboard
+    local function updatePlane()
+        local cam = Workspace.CurrentCamera
+        if not cam or not plane.Parent then return end
 
-        return part
+        local viewport = cam.ViewportSize
+        local aspect = (viewport.Y > 0) and (viewport.X / viewport.Y) or (16/9)
+
+        -- Ukuran bidang dihitung dari FOV agar menutupi area kamera.
+        local distance = SKY_DISTANCE
+        local halfFov = math.rad(cam.FieldOfView * 0.5)
+        local height = 2 * distance * math.tan(halfFov)
+
+        -- Batasi ukuran supaya tidak menjadi terlalu kecil/besar pada FOV ekstrem.
+        height = math.clamp(height, SKY_MIN_SIZE, SKY_MAX_SIZE)
+        local width = math.clamp(height * aspect, SKY_MIN_SIZE, SKY_MAX_SIZE)
+
+        plane.Size = Vector3.new(width, height, 0.05)
+
+        local cf = cam.CFrame
+        plane.CFrame = CFrame.lookAt(
+            cf.Position + cf.LookVector * distance,
+            cf.Position
+        )
     end
 
-    local front=createPlane("Front",FRONT_ID)
-    local back=createPlane("Back",BACK_ID)
+    updatePlane()
 
-    skyConnection=RunService.RenderStepped:Connect(function()
-        local cam=Workspace.CurrentCamera
-        if not cam or not skyFolder or not front or not back then return end
-
-        local cf=cam.CFrame
-        local pos=cf.Position
-        local look=cf.LookVector
-
-        -- Dua bidang mengikuti kamera, dekat agar mudah terlihat.
-        front.CFrame=CFrame.new(pos + look*SKY_DISTANCE)
-        back.CFrame=CFrame.new(pos - look*SKY_DISTANCE)
+    skyConnection = RunService.RenderStepped:Connect(function()
+        if not Toggles.LocalSky then return end
+        updatePlane()
     end)
 end
 
