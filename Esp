@@ -1,353 +1,96 @@
--- V1 CUSTOM GUI
--- Lightweight native GUI: image background, purple neon borders/toggles/sliders.
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
 
+local Window = Library:CreateWindow({
+    AutoShow = true,
+    Title = "vex¿v | V1",
+    MenuFadeTime = 0.001,
+    TabPadding = 0.8,
+    Center = true
+})
+
+local V5Tab = Window:AddTab("V1")
+
+local function GetCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function GetHumanoid()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function GetHumanoidRootPart()
+    local char = GetCharacter()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetPlayers()
+    local list = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            table.insert(list, player)
+        end
+    end
+    return list
+end
+
+local function GetNearestPlayer(radius)
+    local hrp = GetHumanoidRootPart()
+    if not hrp then return nil end
+    local nearest, dist = nil, radius or math.huge
+    for _, player in ipairs(GetPlayers()) do
+        local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if targetHrp then
+            local d = (targetHrp.Position - hrp.Position).Magnitude
+            if d < dist then
+                dist = d
+                nearest = player
+            end
+        end
+    end
+    return nearest, dist
+end
+
+local function IsPlayerVisible(player)
+    if not player or not player.Character then return false end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local origin = Camera.CFrame.Position
+    local direction = (hrp.Position - origin).Unit
+    local ray = Ray.new(origin, direction * 1000)
+    local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
+    if hit then
+        local hitPlayer = Players:GetPlayerFromCharacter(hit.Parent)
+        return hitPlayer == player
+    end
+    return true
+end
+
+local function GetViewportCenter()
+    return Camera.ViewportSize / 2
+end
+
 local Toggles = {}
 local Options = {}
 getgenv().Toggles = Toggles
 getgenv().Options = Options
+
 local Connections = {}
 
-local PURPLE = Color3.fromRGB(170, 70, 255)
-local PURPLE_DARK = Color3.fromRGB(35, 15, 55)
-local PANEL = Color3.fromRGB(16, 12, 22)
-local TEXT = Color3.fromRGB(235, 225, 245)
-
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "V1_CustomGUI"
-Gui.ResetOnSpawn = false
-Gui.IgnoreGuiInset = true
-pcall(function() Gui.Parent = game:GetService("CoreGui") end)
-if not Gui.Parent then Gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
-local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.Size = UDim2.fromOffset(560, 420)
-Main.Position = UDim2.new(0.5, -280, 0.5, -210)
-Main.BackgroundColor3 = PANEL
-Main.BackgroundTransparency = 0.08
-Main.BorderSizePixel = 0
-Main.Parent = Gui
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = Main
-
-local Stroke = Instance.new("UIStroke")
-Stroke.Color = PURPLE
-Stroke.Thickness = 1.5
-Stroke.Transparency = 0.1
-Stroke.Parent = Main
-
--- Background image placeholder. Replace this ID later if a specific V1 background is chosen.
-local Background = Instance.new("ImageLabel")
-Background.Name = "Background"
-Background.Size = UDim2.fromScale(1, 1)
-Background.BackgroundTransparency = 1
-Background.Image = "rbxassetid://0"
-Background.ImageTransparency = 0.78
-Background.ScaleType = Enum.ScaleType.Crop
-Background.ZIndex = 0
-Background.Parent = Main
-
-local BgCorner = Corner:Clone()
-BgCorner.Parent = Background
-
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 44)
-Header.BackgroundColor3 = PURPLE_DARK
-Header.BackgroundTransparency = 0.18
-Header.BorderSizePixel = 0
-Header.ZIndex = 2
-Header.Parent = Main
-
-local Title = Instance.new("TextLabel")
-Title.BackgroundTransparency = 1
-Title.Position = UDim2.fromOffset(14, 0)
-Title.Size = UDim2.new(1, -100, 1, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "vex¿v | V1"
-Title.TextColor3 = TEXT
-Title.TextSize = 17
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.ZIndex = 3
-Title.Parent = Header
-
-local Minimize = Instance.new("TextButton")
-Minimize.Size = UDim2.fromOffset(38, 30)
-Minimize.Position = UDim2.new(1, -48, 0, 7)
-Minimize.BackgroundColor3 = PURPLE
-Minimize.Text = "—"
-Minimize.TextColor3 = Color3.new(1,1,1)
-Minimize.Font = Enum.Font.GothamBold
-Minimize.TextSize = 18
-Minimize.BorderSizePixel = 0
-Minimize.ZIndex = 3
-Minimize.Parent = Header
-Instance.new("UICorner", Minimize).CornerRadius = UDim.new(0, 7)
-
-local Content = Instance.new("ScrollingFrame")
-Content.Name = "Content"
-Content.Position = UDim2.fromOffset(12, 54)
-Content.Size = UDim2.new(1, -24, 1, -66)
-Content.BackgroundTransparency = 1
-Content.BorderSizePixel = 0
-Content.ScrollBarThickness = 4
-Content.ScrollBarImageColor3 = PURPLE
-Content.ZIndex = 2
-Content.Parent = Main
-
-local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0, 8)
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Parent = Content
-
-local function AddSection(name)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -6, 0, 34)
-    f.BackgroundColor3 = PURPLE_DARK
-    f.BackgroundTransparency = 0.2
-    f.BorderSizePixel = 0
-    f.ZIndex = 2
-    f.Parent = Content
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
-    local s = Instance.new("UIStroke")
-    s.Color = PURPLE
-    s.Thickness = 1
-    s.Transparency = 0.35
-    s.Parent = f
-    local l = Instance.new("TextLabel")
-    l.BackgroundTransparency = 1
-    l.Position = UDim2.fromOffset(12,0)
-    l.Size = UDim2.new(1,-24,1,0)
-    l.Text = name
-    l.Font = Enum.Font.GothamBold
-    l.TextColor3 = TEXT
-    l.TextSize = 13
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.ZIndex = 3
-    l.Parent = f
-    return f
-end
-
-local function AddToggle(name, default, callback)
-    Toggles[name] = default or false
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -6, 0, 38)
-    b.BackgroundColor3 = PANEL
-    b.BackgroundTransparency = 0.12
-    b.Text = ""
-    b.BorderSizePixel = 0
-    b.ZIndex = 2
-    b.Parent = Content
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
-    local st = Instance.new("UIStroke")
-    st.Color = PURPLE
-    st.Transparency = 0.55
-    st.Parent = b
-
-    local l = Instance.new("TextLabel")
-    l.BackgroundTransparency = 1
-    l.Position = UDim2.fromOffset(12,0)
-    l.Size = UDim2.new(1,-80,1,0)
-    l.Text = name
-    l.Font = Enum.Font.Gotham
-    l.TextColor3 = TEXT
-    l.TextSize = 13
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.ZIndex = 3
-    l.Parent = b
-
-    local ind = Instance.new("Frame")
-    ind.Size = UDim2.fromOffset(42,22)
-    ind.Position = UDim2.new(1,-54,0.5,-11)
-    ind.BackgroundColor3 = Color3.fromRGB(55,45,65)
-    ind.BorderSizePixel = 0
-    ind.ZIndex = 3
-    ind.Parent = b
-    Instance.new("UICorner", ind).CornerRadius = UDim.new(1,0)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(18,18)
-    knob.Position = UDim2.fromOffset(2,2)
-    knob.BackgroundColor3 = Color3.fromRGB(220,210,225)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 4
-    knob.Parent = ind
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
-
-    local function render()
-        local on = Toggles[name]
-        ind.BackgroundColor3 = on and PURPLE or Color3.fromRGB(55,45,65)
-        knob.BackgroundColor3 = on and Color3.new(1,1,1) or Color3.fromRGB(220,210,225)
-        knob.Position = on and UDim2.fromOffset(22,2) or UDim2.fromOffset(2,2)
-    end
-    b.MouseButton1Click:Connect(function()
-        Toggles[name] = not Toggles[name]
-        render()
-        if callback then task.spawn(callback, Toggles[name]) end
-    end)
-    render()
-    return b
-end
-
-local function AddSlider(name, min, max, default, callback)
-    Options[name] = math.clamp(default or min, min, max)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -6, 0, 54)
-    f.BackgroundColor3 = PANEL
-    f.BackgroundTransparency = 0.12
-    f.BorderSizePixel = 0
-    f.ZIndex = 2
-    f.Parent = Content
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
-    local st = Instance.new("UIStroke")
-    st.Color = PURPLE
-    st.Transparency = 0.55
-    st.Parent = f
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.fromOffset(12,4)
-    label.Size = UDim2.new(1,-80,0,20)
-    label.TextColor3 = TEXT
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 13
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 3
-    label.Parent = f
-
-    local bar = Instance.new("Frame")
-    bar.Position = UDim2.fromOffset(12,32)
-    bar.Size = UDim2.new(1,-24,0,7)
-    bar.BackgroundColor3 = Color3.fromRGB(55,45,65)
-    bar.BorderSizePixel = 0
-    bar.ZIndex = 3
-    bar.Parent = f
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
-
-    local fill = Instance.new("Frame")
-    fill.BackgroundColor3 = PURPLE
-    fill.BorderSizePixel = 0
-    fill.ZIndex = 4
-    fill.Parent = bar
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(14,14)
-    knob.AnchorPoint = Vector2.new(0.5,0.5)
-    knob.BackgroundColor3 = Color3.new(1,1,1)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 5
-    knob.Parent = bar
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
-
-    local dragging = false
-    local function setValue(v)
-        Options[name] = math.clamp(v, min, max)
-        local a = (Options[name]-min)/(max-min)
-        fill.Size = UDim2.new(a,0,1,0)
-        knob.Position = UDim2.new(a,0,0.5,0)
-        label.Text = name .. ": " .. string.format("%.1f", Options[name])
-        if callback then task.spawn(callback, Options[name]) end
-    end
-    local function fromX(x)
-        local a = math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-        setValue(min+(max-min)*a)
-    end
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-            dragging=true
-            fromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
-            fromX(input.Position.X)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-            dragging=false
-        end
-    end)
-    setValue(Options[name])
-    return f
-end
-
-local function AddLabel(txt)
-    local l=Instance.new("TextLabel")
-    l.Size=UDim2.new(1,-6,0,26)
-    l.BackgroundTransparency=1
-    l.Text=txt
-    l.Font=Enum.Font.Gotham
-    l.TextColor3=TEXT
-    l.TextSize=12
-    l.ZIndex=3
-    l.Parent=Content
-    return l
-end
-
--- Existing feature code starts here. The custom GUI functions above replace Linoria controls.
-
--- Compatibility adapters for the existing V1 feature code.
-local V1Tab = {}
-local function Groupbox()
-    return {
-        AddToggle=function(_, name, cfg)
-            return AddToggle(name, cfg and cfg.Default or false, cfg and cfg.Callback)
-        end,
-        AddSlider=function(_, name, cfg)
-            return AddSlider(name, cfg.Min or 0, cfg.Max or 100, cfg.Default or 0, cfg.Callback)
-        end,
-        AddLabel=function(_, txt) return AddLabel(txt) end,
-        AddButton=function(_, name, cb)
-            local b=Instance.new("TextButton")
-            b.Size=UDim2.new(1,-6,0,34); b.Text=name; b.Font=Enum.Font.Gotham
-            b.TextColor3=TEXT; b.BackgroundColor3=PANEL; b.BorderSizePixel=0; b.ZIndex=3; b.Parent=Content
-            Instance.new("UICorner",b).CornerRadius=UDim.new(0,7)
-            b.MouseButton1Click:Connect(function() if cb then task.spawn(cb) end end)
-            return b
-        end
-    }
-end
-function V1Tab:AddLeftGroupbox() return Groupbox() end
-function V1Tab:AddRightGroupbox() return Groupbox() end
-local V5Tab = V1Tab
-
-Minimize.MouseButton1Click:Connect(function()
-    Content.Visible = not Content.Visible
-    Main.Size = Content.Visible and UDim2.fromOffset(560,420) or UDim2.fromOffset(560,44)
-end)
-
-do
-    local dragging=false
-    local dragStart, startPos
-    Header.InputBegan:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-            dragging=true; dragStart=i.Position; startPos=Main.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-            local d=i.Position-dragStart
-            Main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=false end
-    end)
-end
+local V5SliderDragging = false
 
 -- ==================================================
 -- [BAGIAN 1] VISUAL
@@ -488,6 +231,8 @@ local function CreateChinaHat()
     weld.C0 = CFrame.new(0, 0.35, 0)
     weld.Parent = hat
     hat.Parent = char
+    local a=Instance.new("Attachment"); a.Name="ChinaHatVFX"; a.Parent=hat
+    local p=Instance.new("ParticleEmitter"); p.Name="ChinaHatParticles"; p.Texture="rbxasset://textures/particles/sparkles_main.dds"; p.Color=ColorSequence.new(Color3.fromRGB(180,70,255)); p.LightEmission=1; p.Rate=10; p.Lifetime=NumberRange.new(.35,.7); p.Speed=NumberRange.new(.1,.5); p.Size=NumberSequence.new(.18); p.Parent=a
 end
 VisLeft2:AddToggle("ChinaHat", {
     Text = "China Hat", Default = false,
@@ -590,7 +335,7 @@ end
 table.insert(Connections,Players.PlayerRemoving:Connect(RemoveESP))
 
 -- ==================================================
--- V1 AVATAR / MOVEMENT / NETWORK / CAMERA
+-- V5 AVATAR / MOVEMENT / NETWORK / CAMERA
 -- ==================================================
 
 -- No Head + hide all head accessories except China Hat / 8-Bit Royal Crown
@@ -718,10 +463,11 @@ VisLeft2:AddToggle("OneLeg", {Text="One Leg", Default=false, Callback=function(v
 local SPEED_NORMAL = 16
 local speedConnection
 local function UpdateSpeed()
-    local hum = GetHumanoid()
-    if hum then hum.WalkSpeed = Toggles.SpeedUp and (Options.SpeedUpValue or 24) or SPEED_NORMAL end
+    local hum=GetHumanoid(); if not hum then return end
+    if Toggles.SpeedUpV2 then hum.WalkSpeed=Options.SpeedUpV2Value or 32 elseif Toggles.SpeedUp then hum.WalkSpeed=Options.SpeedUpValue or 24 else hum.WalkSpeed=SPEED_NORMAL end
 end
-table.insert(Connections,RunService.Heartbeat:Connect(function() if Toggles.SpeedUp then UpdateSpeed() end end))
+speedConnection=RunService.Heartbeat:Connect(function() if Toggles.SpeedUp or Toggles.SpeedUpV2 then UpdateSpeed() end end)
+table.insert(Connections,speedConnection)
 V5Tab:AddLeftGroupbox("🏃 MOVEMENT")
 local MoveGroup = V5Tab:AddLeftGroupbox("🏃 MOVEMENT")
 MoveGroup:AddToggle("SpeedUp", {
@@ -752,29 +498,7 @@ MoveGroup:AddSlider("SpeedUpValue", {
     end
 })
 
-MoveGroup:AddToggle("SpeedUpV2", {
-    Text="Sedih V2",
-    Default=false,
-    Callback=function(v)
-        Toggles.SpeedUpV2=v
-        if v then
-            local char=LocalPlayer.Character
-            local hum=char and char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed=Options.SpeedUpV2Value or 32
-            end
-        else
-            local char=LocalPlayer.Character
-            local hum=char and char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed=16
-            end
-            if Toggles.SpeedUp then
-                UpdateSpeed()
-            end
-        end
-    end
-}):AddKeyPicker("SpeedUpV2Key", {
+MoveGroup:AddToggle("SpeedUpV2", {Text="Sedih V2",Default=false,Callback=function(v) Toggles.SpeedUpV2=v; UpdateSpeed() end}):AddKeyPicker("SpeedUpV2Key", {
     Text="Tombol Sedih V2",
     Mode="Toggle",
     Default="Q",
@@ -798,6 +522,7 @@ MoveGroup:AddSlider("SpeedUpV2Value", {
         end
     end
 })
+
 
 -- No Slowdown
 local noSlowConnection
@@ -937,11 +662,11 @@ FlashGroup:AddSlider("FlashlightBrightness", {Text="Kecerahan", Default=50, Min=
 FlashGroup:AddSlider("FlashlightRange", {Text="Jangkauan", Default=16, Min=1, Max=100, Rounding=1, Callback=function(v) Options.FlashlightRange=v end})
 FlashGroup:AddSlider("FlashlightAngle", {Text="Sudut", Default=45, Min=1, Max=120, Rounding=1, Callback=function(v) Options.FlashlightAngle=v end})
 
--- Camera Modifier: basis CameraBlock dari script V1 yang dipilih
+-- Camera Modifier: basis CameraBlock dari script V5 yang dipilih
 local cameraModifierConnection
 local CameraBlock
 local smoothedPos
-local STIFFNESS_DEFAULT=6
+local STIFFNESS_DEFAULT=7
 local CAMERA_HEIGHT_DEFAULT=-3
 local function CleanupCameraBlock()
     if cameraModifierConnection then
@@ -993,8 +718,54 @@ CameraGroup:AddToggle("CameraModifier", {Text="Camera Modifier", Default=false, 
     Toggles.CameraModifier=v
     if v then SetupCameraModifier() else CleanupCameraBlock() end
 end})
-CameraGroup:AddSlider("Stiffness", {Text="STIFFNESS", Default=6, Min=1, Max=20, Rounding=1, Callback=function(v) Options.Stiffness=v end})
+CameraGroup:AddSlider("Stiffness", {Text="STIFFNESS", Default=7, Min=1, Max=20, Rounding=1, Callback=function(v) Options.Stiffness=v end})
 CameraGroup:AddSlider("CameraHeight", {Text="CAMERA HEIGHT", Default=-3, Min=-30, Max=10, Rounding=1, Callback=function(v) Options.CameraHeight=v end})
+
+-- CAMERA FILTER: post-processing lokal dengan preset, tidak mengubah filter bawaan game.
+local cameraFilterEffect
+local CAMERA_FILTERS={
+    ["Normal"]={tint=Color3.fromRGB(255,255,255),brightness=0,contrast=0,saturation=0},
+    ["Black & White"]={tint=Color3.fromRGB(255,255,255),brightness=0,contrast=0.08,saturation=-1},
+    ["Cool"]={tint=Color3.fromRGB(205,225,255),brightness=0,contrast=0.08,saturation=-0.05},
+    ["Warm"]={tint=Color3.fromRGB(255,225,195),brightness=0.01,contrast=0.08,saturation=0.08},
+    ["Purple"]={tint=Color3.fromRGB(225,205,255),brightness=0,contrast=0.12,saturation=0.1},
+    ["Red"]={tint=Color3.fromRGB(255,200,200),brightness=-0.01,contrast=0.1,saturation=0.05},
+    ["Night"]={tint=Color3.fromRGB(175,205,255),brightness=-0.12,contrast=0.16,saturation=-0.2},
+    ["Cinematic"]={tint=Color3.fromRGB(220,230,255),brightness=-0.03,contrast=0.2,saturation=-0.08}
+}
+local function ClearCameraFilter()
+    if cameraFilterEffect then
+        cameraFilterEffect:Destroy()
+        cameraFilterEffect=nil
+    end
+end
+local function ApplyCameraFilter()
+    ClearCameraFilter()
+    if not Toggles.CameraFilter then return end
+    local preset=CAMERA_FILTERS[Options.CameraFilterPreset or "Normal"] or CAMERA_FILTERS.Normal
+    local effect=Instance.new("ColorCorrectionEffect")
+    effect.Name="VexV_CameraFilter"
+    effect.TintColor=preset.tint
+    effect.Brightness=preset.brightness
+    effect.Contrast=preset.contrast
+    effect.Saturation=preset.saturation
+    effect.Parent=Lighting
+    cameraFilterEffect=effect
+end
+local CameraFilterGroup=V5Tab:AddRightGroupbox("🎨 CAMERA FILTER")
+CameraFilterGroup:AddToggle("CameraFilter", {Text="Camera Filter", Default=false, Callback=function(v)
+    Toggles.CameraFilter=v
+    if v then ApplyCameraFilter() else ClearCameraFilter() end
+end})
+CameraFilterGroup:AddDropdown("CameraFilterPreset", {
+    Values={"Normal","Black & White","Cool","Warm","Purple","Red","Night","Cinematic"},
+    Default="Normal",
+    Text="Preset Filter",
+    Callback=function(v)
+        Options.CameraFilterPreset=v
+        if Toggles.CameraFilter then ApplyCameraFilter() end
+    end
+})
 
 table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
 
@@ -1063,13 +834,13 @@ local function CreateRoyalCrown()
     mesh.Parent = handle
 
     -- Posisi dasar mengikuti pola China Hat.
-    handle.CFrame = head.CFrame * CFrame.new(0, 0.55, 0)
+    handle.CFrame = head.CFrame * CFrame.new(0, 1.05, 0)
 
     local weld = Instance.new("Weld")
     weld.Name = "RoyalCrownWeld"
     weld.Part0 = head
     weld.Part1 = handle
-    weld.C0 = CFrame.new(0, 0.55, 0)
+    weld.C0 = CFrame.new(0, 1.05, 0)
     weld.C1 = CFrame.new()
     weld.Parent = handle
 
@@ -1086,16 +857,16 @@ local function CreateRoyalCrown()
     })
     fire.LightEmission = 1
     fire.LightInfluence = 0
-    fire.Rate = 22
+    fire.Rate = 34
     fire.Lifetime = NumberRange.new(0.35, 0.8)
     fire.Speed = NumberRange.new(0.3, 1.2)
     fire.SpreadAngle = Vector2.new(25, 25)
     fire.Rotation = NumberRange.new(0, 360)
     fire.RotSpeed = NumberRange.new(-90, 90)
     fire.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.25),
-        NumberSequenceKeypoint.new(0.35, 0.7),
-        NumberSequenceKeypoint.new(0.8, 0.45),
+        NumberSequenceKeypoint.new(0, 0.35),
+        NumberSequenceKeypoint.new(0.35, 0.95),
+        NumberSequenceKeypoint.new(0.8, 0.55),
         NumberSequenceKeypoint.new(1, 0)
     })
     fire.Transparency = NumberSequence.new({
@@ -1127,6 +898,9 @@ VisLeft2:AddToggle("Bit8Head", {
         end
     end
 })
+
+
+-- ACCESSORIES 1-3 REMOVED
 
 -- LEG EFFECTS: satu toggle untuk kedua kaki, 7 pilihan, tanpa Image ID
 local legEffectObjects={}
@@ -1202,14 +976,11 @@ local function CreateLegEffect(leg,mode)
     pe.Parent=a
     table.insert(legEffectObjects,pe)
 
+    local ta=Instance.new("Attachment"); ta.Name="V1_TrailTop"; ta.Position=Vector3.new(0,0.15,0); ta.Parent=leg; table.insert(legEffectObjects,ta)
+    local tb=Instance.new("Attachment"); tb.Name="V1_TrailBottom"; tb.Position=Vector3.new(0,-0.55,0); tb.Parent=leg; table.insert(legEffectObjects,tb)
+    local tr=Instance.new("Trail"); tr.Name="V1_LongStepTrail"; tr.Attachment0=ta; tr.Attachment1=tb; tr.Color=ColorSequence.new(LegColor(mode)); tr.LightEmission=1; tr.Lifetime=.55; tr.MinLength=.05; tr.WidthScale=NumberSequence.new(1.1); tr.Transparency=NumberSequence.new(0.12); tr.Parent=leg; table.insert(legEffectObjects,tr)
     local glow=Instance.new("PointLight")
-    glow.Name="V1_LegGlow"
-    glow.Color=LegColor(mode)
-    glow.Brightness=0.35
-    glow.Range=3
-    glow.Shadows=false
-    glow.Parent=leg
-    table.insert(legEffectObjects,glow)
+    glow.Name="V1_LegGlow"; glow.Color=LegColor(mode); glow.Brightness=0.7; glow.Range=4; glow.Shadows=false; glow.Parent=leg; table.insert(legEffectObjects,glow)
 end
 
 local function SetLegEffects(v)
@@ -1245,7 +1016,7 @@ table.insert(Connections,LocalPlayer.CharacterAdded:Connect(function()
     if Toggles.LegEffects then SetLegEffects(true) end
 end))
 
--- HAND LASER: SATU SISTEM SAJA, KOSMETIK, SELALU LURUS KE BAWAH
+-- HAND LASER: SATU SISTEM SAJA, ORIGIN TANGAN KANAN + ARAH CROSSHAIR
 local handLaserPart
 local handLaserAttachment0
 local handLaserAttachment1
@@ -1402,10 +1173,17 @@ local function SetHandLaser(state)
 
         local length=Options.LaserLength or 50
 
-        -- WAJIB vertikal ke bawah. Tidak mengikuti kamera/crosshair.
-        endpoint.CFrame=CFrame.new(h.Position+Vector3.new(0,-length,0))
+        -- Origin mengikuti tangan kanan; arah mengikuti crosshair kamera.
+        local cam=Workspace.CurrentCamera
+        local ray
+        if cam then
+            local vp=cam.ViewportSize
+            ray=cam:ViewportPointToRay(vp.X*0.5,vp.Y*0.5)
+        end
+        local direction=ray and ray.Direction or Vector3.new(0,-1,0)
+        endpoint.CFrame=CFrame.lookAt(h.Position+direction*length,h.Position+direction*(length+1))
 
-        local holeCenter=h.Position+Vector3.new(0,-length*0.5,0)
+        local holeCenter=h.Position+direction*(length*0.5)
         blackHole.CFrame=CFrame.new(holeCenter)
 
         local t=os.clock()-startTime
@@ -1477,20 +1255,33 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
--- Local 2D Front/Back Sky
+-- LOCAL 2D SKY: hanya bidang DEPAN + BELAKANG, mengikuti arah kamera.
 local skyFolder, skyConnection
-local FRONT_ID="rbxassetid://80856954747945"
+local FRONT_ID="rbxassetid://89274460160335" -- Ft
+local BACK_ID="rbxassetid://75381350570426"   -- Bk
 local SKY_DISTANCE=290
 local SKY_SIZE=350
+
 local function ClearLocalSky()
-    if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
-    if skyFolder then skyFolder:Destroy(); skyFolder=nil end
+    if skyConnection then
+        skyConnection:Disconnect()
+        skyConnection=nil
+    end
+    if skyFolder then
+        skyFolder:Destroy()
+        skyFolder=nil
+    end
 end
+
 local function CreateLocalSky()
     ClearLocalSky()
+    StopCinematic()
+    ClearVisualHitbox()
+
     skyFolder=Instance.new("Folder")
     skyFolder.Name="VexV_2D_FrontBack"
     skyFolder.Parent=Workspace
+
     local function createPlane(name,id)
         local part=Instance.new("Part")
         part.Name=name
@@ -1499,28 +1290,51 @@ local function CreateLocalSky()
         part.CanTouch=false
         part.CanQuery=false
         part.Transparency=1
+        part.CastShadow=false
         part.Size=Vector3.new(SKY_SIZE,SKY_SIZE,0.1)
         part.Parent=skyFolder
+
         local decal=Instance.new("Decal")
         decal.Name="Image"
         decal.Texture=id
         decal.Face=Enum.NormalId.Front
+        decal.Transparency=0
         decal.Parent=part
         return part
     end
+
     local front=createPlane("Front",FRONT_ID)
-        skyConnection=RunService.RenderStepped:Connect(function()
+    local back=createPlane("Back",BACK_ID)
+
+    skyConnection=RunService.RenderStepped:Connect(function()
         local cam=Workspace.CurrentCamera
-        if not cam or not skyFolder then return end
+        if not cam or not skyFolder or not front or not back then return end
+
         local cf=cam.CFrame
         local pos=cf.Position
-        front.CFrame=CFrame.lookAt(pos+cf.LookVector*SKY_DISTANCE,pos)
+        local look=cf.LookVector
+
+        -- Bidang depan selalu berada di depan kamera.
+        front.CFrame=CFrame.lookAt(pos + look*SKY_DISTANCE, pos)
+
+        -- Bidang belakang selalu berada di belakang kamera.
+        -- Diputar menghadap kamera supaya decal tetap terlihat dari dalam.
+        back.CFrame=CFrame.lookAt(pos - look*SKY_DISTANCE, pos)
     end)
 end
-ModRight:AddToggle("LocalSky", {Text="Local 2D Sky", Default=false, Callback=function(v)
-    Toggles.LocalSky=v
-    if v then CreateLocalSky() else ClearLocalSky() end
-end})
+
+ModRight:AddToggle("LocalSky", {
+    Text="Local 2D Sky (Front + Back)",
+    Default=false,
+    Callback=function(v)
+        Toggles.LocalSky=v
+        if v then
+            CreateLocalSky()
+        else
+            ClearLocalSky()
+        end
+    end
+})
 
 -- FPS Optimizer: opsi ringan, bisa dibalik
 local fpsOriginal = {}
@@ -1543,6 +1357,21 @@ local function SetFPSOptimizer(enabled)
     end
 end
 ModLeft:AddToggle("FPSOptimizer", {Text="FPS Optimizer", Default=false, Callback=function(v) Toggles.FPSOptimizer=v; SetFPSOptimizer(v) end})
+
+
+-- VISUAL HITBOX DIAGNOSTIC: visual only.
+local hitboxVisualObjects={}
+local function ClearVisualHitbox() for _,h in pairs(hitboxVisualObjects) do if h then h:Destroy() end end; table.clear(hitboxVisualObjects) end
+local function SetVisualHitbox(v)
+ ClearVisualHitbox(); if not v then return end
+ for _,plr in ipairs(Players:GetPlayers()) do if plr~=LocalPlayer and plr.Character then
+  for _,part in ipairs(plr.Character:GetDescendants()) do if part:IsA("BasePart") and part.Name~="HumanoidRootPart" then
+   local h=Instance.new("Highlight"); h.Name="V1_HitboxVisual"; h.Adornee=part; h.FillColor=Color3.fromRGB(255,70,70); h.FillTransparency=.82; h.OutlineColor=Color3.fromRGB(255,255,255); h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Parent=part; hitboxVisualObjects[part]=h
+  end end
+ end end
+end
+local HBGroup=V5Tab:AddLeftGroupbox("🎯 HITBOX VISUAL")
+HBGroup:AddToggle("VisualHitbox",{Text="Hitbox Visual",Default=false,Callback=function(v) Toggles.VisualHitbox=v; SetVisualHitbox(v) end})
 
 -- ==================================================
 -- [BAGIAN 2] KILLER
@@ -1814,6 +1643,25 @@ end
 hudTrack(RunService.Heartbeat:Connect(updateHudIcons))
 hudTrack(LocalPlayer.CharacterAdded:Connect(function() hudLocked={}; hudLastHook={}; hudLastProgress={}; hudStatusHooked={} end))
 
+
+-- CINEMATIC CAMERA: Follow / Orbit / Trailer
+local cinematicConnection; local cinematicMode="Follow"; local cinematicTime=0
+local function StopCinematic() if cinematicConnection then cinematicConnection:Disconnect(); cinematicConnection=nil end; local hum=GetHumanoid(); Camera.CameraType=Enum.CameraType.Custom; if hum then Camera.CameraSubject=hum end end
+local function StartCinematic()
+ StopCinematic(); Camera.CameraType=Enum.CameraType.Scriptable; cinematicTime=0
+ cinematicConnection=RunService.RenderStepped:Connect(function(dt)
+  local c=LocalPlayer.Character; local root=c and c:FindFirstChild("HumanoidRootPart"); if not root then return end; cinematicTime+=dt
+  local pos
+  if cinematicMode=="Follow" then pos=root.Position-root.CFrame.LookVector*9+Vector3.new(0,4,0)
+  elseif cinematicMode=="Orbit" then local a=cinematicTime*.7; pos=root.Position+Vector3.new(math.cos(a)*10,4.5,math.sin(a)*10)
+  else local ph=cinematicTime%12; local a=ph*.35; local r=8+math.sin(ph*.5)*5; pos=root.Position+Vector3.new(math.cos(a)*r,3+math.sin(ph*.4)*3,math.sin(a)*r) end
+  Camera.CFrame=CFrame.lookAt(pos,root.Position+Vector3.new(0,2,0))
+ end)
+end
+local CG=V5Tab:AddLeftGroupbox("🎬 CINEMATIC")
+CG:AddToggle("CinematicCamera",{Text="Kamera Cinematic",Default=false,Callback=function(v) Toggles.CinematicCamera=v; if v then StartCinematic() else StopCinematic() end end})
+CG:AddDropdown("CinematicMode",{Values={"Follow","Orbit","Trailer"},Default="Follow",Text="Mode",Callback=function(v) cinematicMode=v; if Toggles.CinematicCamera then StartCinematic() end end})
+
 -- ==================================================
 -- [BAGIAN 4] UI / MENU
 -- ==================================================
@@ -1823,14 +1671,15 @@ local UILeft = V5Tab:AddLeftGroupbox("⚙️ MENU")
 UILeft:AddButton("Unload", function()
     Toggles.CameraModifier=false
     CleanupCameraBlock()
+    ClearCameraFilter()
+    ClearLocalSky()
     if speedConnection then speedConnection:Disconnect(); speedConnection=nil end
     if noSlowConnection then noSlowConnection:Disconnect(); noSlowConnection=nil end
     if noFallConnection then noFallConnection:Disconnect(); noFallConnection=nil end
     if fakeLagConnection then fakeLagConnection:Disconnect(); fakeLagConnection=nil end
-    ClearLocalSky()
     for _, conn in ipairs(hudConnections) do pcall(conn.Disconnect, conn) end
     for _, conn in ipairs(Connections) do pcall(conn.Disconnect, conn) end
-    Gui:Destroy()
+    Library:Unload()
 end)
 
 -- [KONTROL] Tombol Menu
@@ -1842,4 +1691,15 @@ UILeft:AddLabel("Tombol Menu"):AddKeyPicker("MenuKeybind", {
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Custom GUI has no external ThemeManager/SaveManager dependency.
+
+-- ========== THEME DAN PENYIMPANAN ==========
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({"MenuKeybind"})
+ThemeManager:SetFolder("SwagaShit")
+SaveManager:SetFolder("SwagasShit/config")
+SaveManager:BuildConfigSection(V5Tab)
+
+task.wait(2)
+SaveManager:LoadAutoloadConfig()
