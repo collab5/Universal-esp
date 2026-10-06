@@ -1,3 +1,4 @@
+-- V1 VISUAL FIX BUILD: Negative, Screen Stretch, Headless, Accessory Sync, Sky 50, Halloween Fire
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
@@ -120,6 +121,8 @@ getgenv().Toggles = Toggles
 getgenv().Options = Options
 
 local Connections = {}
+local ClearHalloweenFire
+local CreateRoyalCrown
 
 local V5SliderDragging = false
 
@@ -470,7 +473,7 @@ local function SetESP(enabled)
     end
 end
 
-VisLeft:AddToggle("ESP_simple",{Text="Eskrim",Default=false,Callback=SetESP})
+VisLeft:AddToggle("ESP_simple",{Text="ESP",Default=false,Callback=SetESP})
 table.insert(Connections,Players.PlayerAdded:Connect(BindUniversalESPPlayer))
 table.insert(Connections,Players.PlayerRemoving:Connect(function(player)
     RemoveESP(player)
@@ -568,96 +571,126 @@ end))
 -- V5 AVATAR / MOVEMENT / NETWORK / CAMERA
 -- ==================================================
 
--- No Head + hide all head accessories except China Hat / 8-Bit Royal Crown
-local noHeadState = {}
+-- ==================================================
+-- NO HEAD / HEADLESS UNIVERSAL
+-- R6, R15, dan custom rig.
+-- ==================================================
+local noHeadState={}
+local noHeadConnection
 
 local function IsWhitelistHeadAccessory(acc)
     if not acc or not acc:IsA("Accessory") then return false end
-    local n = string.lower(acc.Name:gsub("[%s_%-%:]", ""))
-    return n == "chinahat"
-        or n == "8bitroyalcrown"
-        or n:find("chinahat") ~= nil
-        or n:find("8bitroyalcrown") ~= nil
+    local n=string.lower(acc.Name:gsub("[%s_%-%:]", ""))
+    return n=="chinahat"
+        or n=="8bitroyalcrown"
+        or n:find("chinahat")~=nil
+        or n:find("8bitroyalcrown")~=nil
+end
+
+local function SaveNoHeadState(obj)
+    if noHeadState[obj] then return end
+    if obj:IsA("BasePart") then
+        noHeadState[obj]={kind="part",Transparency=obj.Transparency,LocalTransparencyModifier=obj.LocalTransparencyModifier}
+    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        noHeadState[obj]={kind="decal",Transparency=obj.Transparency}
+    end
+end
+
+local function RestoreNoHead()
+    for obj,state in pairs(noHeadState) do
+        if obj and obj.Parent then
+            if state.kind=="part" and obj:IsA("BasePart") then
+                obj.Transparency=state.Transparency
+                obj.LocalTransparencyModifier=state.LocalTransparencyModifier
+            elseif state.kind=="decal" and (obj:IsA("Decal") or obj:IsA("Texture")) then
+                obj.Transparency=state.Transparency
+            end
+        end
+    end
+    table.clear(noHeadState)
+end
+
+local function HideNoHeadObject(obj)
+    if not obj or not obj.Parent then return end
+    if obj:IsA("BasePart") then
+        obj.Transparency=1
+        obj.LocalTransparencyModifier=1
+    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        obj.Transparency=1
+    end
+end
+
+local function ApplyNoHeadOnce()
+    local char=LocalPlayer.Character
+    if not char then return end
+
+    local head=char:FindFirstChild("Head")
+    if head and head:IsA("BasePart") then
+        SaveNoHeadState(head)
+        HideNoHeadObject(head)
+        for _,child in ipairs(head:GetChildren()) do
+            if child:IsA("Decal") or child:IsA("Texture") then
+                SaveNoHeadState(child)
+                HideNoHeadObject(child)
+            end
+        end
+    end
+
+    for _,acc in ipairs(char:GetChildren()) do
+        if acc:IsA("Accessory") and not IsWhitelistHeadAccessory(acc) then
+            local handle=acc:FindFirstChild("Handle") or acc:FindFirstChildWhichIsA("BasePart",true)
+            if handle and handle:IsA("BasePart") then
+                local n=string.lower(acc.Name)
+                local headAccessory=(
+                    n:find("hair")~=nil or
+                    n:find("hat")~=nil or
+                    n:find("head")~=nil or
+                    n:find("face")~=nil or
+                    n:find("mask")~=nil or
+                    n:find("crown")~=nil or
+                    handle:FindFirstChild("HatAttachment")~=nil or
+                    handle:FindFirstChild("HairAttachment")~=nil or
+                    handle:FindFirstChild("FaceFrontAttachment")~=nil or
+                    handle:FindFirstChild("FaceCenterAttachment")~=nil or
+                    handle:FindFirstChild("NeckAttachment")~=nil
+                )
+                if headAccessory then
+                    SaveNoHeadState(handle)
+                    HideNoHeadObject(handle)
+                    for _,child in ipairs(handle:GetDescendants()) do
+                        if child:IsA("BasePart") or child:IsA("Decal") or child:IsA("Texture") then
+                            SaveNoHeadState(child)
+                            HideNoHeadObject(child)
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function SetNoHead(enabled)
-    local char = LocalPlayer.Character
-    if not char then return end
+    if noHeadConnection then
+        noHeadConnection:Disconnect()
+        noHeadConnection=nil
+    end
 
     if not enabled then
-        for obj, state in pairs(noHeadState) do
-            if obj and obj.Parent then
-                if obj:IsA("BasePart") then
-                    obj.Transparency = state.Transparency
-                    obj.LocalTransparencyModifier = state.LocalTransparencyModifier
-                elseif obj:IsA("Decal") then
-                    obj.Transparency = state.Transparency
-                end
-            end
-        end
-        table.clear(noHeadState)
+        RestoreNoHead()
         return
     end
 
-    for _, obj in ipairs(char:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            local acc = obj:FindFirstAncestorOfClass("Accessory")
-            local attachedToHead = false
-
-            if acc then
-                local handle = acc:FindFirstChild("Handle")
-                attachedToHead = handle == obj or acc:FindFirstChild("Head", true) ~= nil
-            end
-
-            if obj.Name == "Head" then
-                if not noHeadState[obj] then
-                    noHeadState[obj] = {
-                        Transparency = obj.Transparency,
-                        LocalTransparencyModifier = obj.LocalTransparencyModifier
-                    }
-                end
-                obj.Transparency = 1
-                obj.LocalTransparencyModifier = 1
-
-            elseif acc and not IsWhitelistHeadAccessory(acc) then
-                -- Hide every accessory whose handle is attached to the character head,
-                -- including hair, hats and face accessories.
-                local weld = obj:FindFirstChildWhichIsA("Weld") or obj:FindFirstChildWhichIsA("WeldConstraint")
-                local headAttachment = obj:FindFirstChildWhichIsA("Attachment")
-                local accName = string.lower(acc.Name)
-
-                if attachedToHead
-                    or accName:find("hair")
-                    or accName:find("hat")
-                    or accName:find("face")
-                    or accName:find("head")
-                    or accName:find("crown")
-                    or headAttachment then
-
-                    if not noHeadState[obj] then
-                        noHeadState[obj] = {
-                            Transparency = obj.Transparency,
-                            LocalTransparencyModifier = obj.LocalTransparencyModifier
-                        }
-                    end
-                    obj.Transparency = 1
-                    obj.LocalTransparencyModifier = 1
-                end
-            end
-        elseif obj:IsA("Decal") and obj.Parent and obj.Parent.Name == "Head" then
-            if not noHeadState[obj] then
-                noHeadState[obj] = {Transparency = obj.Transparency}
-            end
-            obj.Transparency = 1
-        end
-    end
+    ApplyNoHeadOnce()
+    noHeadConnection=RunService.Heartbeat:Connect(function()
+        if Toggles.NoHead then ApplyNoHeadOnce() end
+    end)
 end
 
 VisLeft2:AddToggle("NoHead", {
-    Text = "No Head",
-    Default = false,
-    Callback = function(v)
-        Toggles.NoHead = v
+    Text="No Head",
+    Default=false,
+    Callback=function(v)
+        Toggles.NoHead=v
         SetNoHead(v)
     end
 })
@@ -970,7 +1003,7 @@ local CAMERA_FILTERS={
     ["Cinematic"]={tint=Color3.fromRGB(220,230,255),brightness=-0.03,contrast=0.2,saturation=-0.08},
     -- Roblox ColorCorrection tidak punya true color-invert.
     -- Preset ini dibuat sebagai efek "negative-style" yang kontras/terbalik secara visual.
-    ["Negative"]={tint=Color3.fromRGB(195,220,255),brightness=0.02,contrast=0.22,saturation=-0.14}
+    ["Negative"]={tint=Color3.fromRGB(180,210,255),brightness=0.08,contrast=0.75,saturation=-0.65} -- preset asli V1
 }
 local function ClearCameraFilter()
     if cameraFilterEffect then
@@ -1024,6 +1057,10 @@ end))
 -- Mode 4:3
 ModRight:AddToggle("Aspect43", {Text="Mode 4:3", Default=false, Callback=function(v)
     Toggles.Aspect43=v
+    if v and Toggles.ScreenStretch then
+        Toggles.ScreenStretch=false
+        ClearScreenStretch()
+    end
     if not v then return end
     local conn
     conn=RunService.RenderStepped:Connect(function()
@@ -1035,36 +1072,40 @@ ModRight:AddToggle("Aspect43", {Text="Mode 4:3", Default=false, Callback=functio
     table.insert(Connections, conn)
 end})
 
--- LAYAR GEPENG / HORIZONTAL STRETCH.
--- Simulasi layar yang melebar ke kanan dan kiri dengan memperlebar bentuk badan karakter lokal.
--- Nilai default dibuat ringan supaya distorsi tidak terlalu pekat.
--- SCREEN STRETCH: efek layar gepeng seperti resolution matrix.
--- Nilai 0.46 dibuat sebagai default sesuai contoh pengguna.
-local screenStretchConnection
+-- ==================================================
+-- 🖥️ LAYAR GEPENG
+-- Mengikuti metode matrix asli 0.46, tetapi dieksekusi sesudah Camera update
+-- agar tidak menumpuk antar-frame dan tidak berebut dengan Mode 4:3.
+-- ==================================================
+local screenStretchBound=false
 local SCREEN_STRETCH_DEFAULT=0.46
 
 local function ClearScreenStretch()
-    if screenStretchConnection then
-        screenStretchConnection:Disconnect()
-        screenStretchConnection=nil
+    if screenStretchBound then
+        pcall(function() RunService:UnbindToRenderStep("VexV_ScreenStretch") end)
+        screenStretchBound=false
     end
 end
 
 local function ApplyScreenStretch()
     ClearScreenStretch()
-    screenStretchConnection=RunService.RenderStepped:Connect(function()
-        if not Toggles.ScreenStretch then return end
-        local cam=Workspace.CurrentCamera
-        if not cam then return end
-        local resolution=math.clamp(Options.ScreenStretchAmount or SCREEN_STRETCH_DEFAULT,0.10,1.00)
-        pcall(function()
-            cam.CFrame=cam.CFrame*CFrame.new(
-                0,0,0,
-                1,0,0,
-                0,resolution,0,
-                0,0,1
-            )
+    pcall(function()
+        RunService:BindToRenderStep("VexV_ScreenStretch", Enum.RenderPriority.Camera.Value + 1, function()
+            if not Toggles.ScreenStretch then return end
+            local cam=Workspace.CurrentCamera
+            if not cam then return end
+            local resolution=math.clamp(tonumber(Options.ScreenStretchAmount) or SCREEN_STRETCH_DEFAULT,0.10,1.00)
+            pcall(function()
+                local base=cam.CFrame
+                cam.CFrame=base*CFrame.new(
+                    0,0,0,
+                    1,0,0,
+                    0,resolution,0,
+                    0,0,1
+                )
+            end)
         end)
+        screenStretchBound=true
     end)
 end
 
@@ -1074,7 +1115,14 @@ ScreenStretchGroup:AddToggle("ScreenStretch", {
     Default=false,
     Callback=function(v)
         Toggles.ScreenStretch=v
-        if v then ApplyScreenStretch() else ClearScreenStretch() end
+        if v then
+            if Toggles.Aspect43 then
+                Toggles.Aspect43=false
+            end
+            ApplyScreenStretch()
+        else
+            ClearScreenStretch()
+        end
     end
 })
 ScreenStretchGroup:AddSlider("ScreenStretchAmount", {
@@ -1088,9 +1136,10 @@ ScreenStretchGroup:AddSlider("ScreenStretchAmount", {
         if Toggles.ScreenStretch then ApplyScreenStretch() end
     end
 })
+ScreenStretchGroup:AddLabel("0.46 = nilai asli")
 
 table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.35)
+    task.wait(0.50)
     if Toggles.ScreenStretch then ApplyScreenStretch() end
 end))
 
@@ -1105,7 +1154,7 @@ local function RemoveRoyalCrown()
     if crown then crown:Destroy() end
 end
 
-local function CreateRoyalCrown()
+function CreateRoyalCrown()
     local c = LocalPlayer.Character
     if not c then return end
 
@@ -1145,44 +1194,70 @@ local function CreateRoyalCrown()
 
     handle.Parent = c
     handle.LocalTransparencyModifier = 0
-    -- Blue fire: layered so it looks closer to the original crown flame.
-    local fire = Instance.new("ParticleEmitter")
-    fire.Name = "RoyalCrownBlueFire"
-    fire.Texture = "rbxasset://textures/particles/fire_main.dds"
-    fire.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(235, 250, 255)),
-        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(70, 170, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 70, 255))
-    })
-    fire.LightEmission = 1
-    fire.LightInfluence = 0
-    fire.Rate = 34
-    fire.Lifetime = NumberRange.new(0.35, 0.8)
-    fire.Speed = NumberRange.new(0.3, 1.2)
-    fire.SpreadAngle = Vector2.new(25, 25)
-    fire.Rotation = NumberRange.new(0, 360)
-    fire.RotSpeed = NumberRange.new(-90, 90)
-    fire.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.35),
-        NumberSequenceKeypoint.new(0.35, 0.95),
-        NumberSequenceKeypoint.new(0.8, 0.55),
-        NumberSequenceKeypoint.new(1, 0)
-    })
-    fire.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.05),
-        NumberSequenceKeypoint.new(0.75, 0.25),
-        NumberSequenceKeypoint.new(1, 1)
-    })
-    fire.Parent = handle
+    -- Halloween fire source.
+    -- Referensi visual: Halloween Flame Aura - Top, asset 5830573638.
+    -- Jika client bisa memuat asset, hanya ParticleEmitter-nya yang diambil.
+    local HALLOWEEN_FIRE_ASSET = "rbxassetid://5830573638"
+    local loadedHalloweenEmitter=false
 
-    local fireGlow = Instance.new("PointLight")
-    fireGlow.Name = "RoyalCrownBlueFireGlow"
-    fireGlow.Color = Color3.fromRGB(70, 150, 255)
-    fireGlow.Brightness = 1.2
-    fireGlow.Range = 7
-    fireGlow.Shadows = false
-    fireGlow.Parent = handle
+    local ok,objects=pcall(function()
+        return game:GetObjects(HALLOWEEN_FIRE_ASSET)
+    end)
 
+    if ok and type(objects)=="table" then
+        for _,root in ipairs(objects) do
+            for _,desc in ipairs(root:GetDescendants()) do
+                if desc:IsA("ParticleEmitter") then
+                    local cloned=desc:Clone()
+                    cloned.Name="RoyalCrownHalloweenFire"
+                    cloned.Parent=handle
+                    loadedHalloweenEmitter=true
+                end
+            end
+            pcall(function() root:Destroy() end)
+        end
+    end
+
+    -- Fallback jika katalog effect tidak bisa dimuat oleh client.
+    if not loadedHalloweenEmitter then
+        local fire=Instance.new("ParticleEmitter")
+        fire.Name="RoyalCrownHalloweenFire"
+        fire.Texture="rbxasset://textures/particles/fire_main.dds"
+        fire.Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,Color3.fromRGB(255,248,210)),
+            ColorSequenceKeypoint.new(0.35,Color3.fromRGB(255,150,25)),
+            ColorSequenceKeypoint.new(0.70,Color3.fromRGB(255,55,15)),
+            ColorSequenceKeypoint.new(1,Color3.fromRGB(115,10,5))
+        })
+        fire.LightEmission=1
+        fire.LightInfluence=0
+        fire.Rate=34
+        fire.Lifetime=NumberRange.new(0.35,0.8)
+        fire.Speed=NumberRange.new(0.3,1.2)
+        fire.SpreadAngle=Vector2.new(25,25)
+        fire.Rotation=NumberRange.new(0,360)
+        fire.RotSpeed=NumberRange.new(-90,90)
+        fire.Size=NumberSequence.new({
+            NumberSequenceKeypoint.new(0,0.35),
+            NumberSequenceKeypoint.new(0.35,0.95),
+            NumberSequenceKeypoint.new(0.8,0.55),
+            NumberSequenceKeypoint.new(1,0)
+        })
+        fire.Transparency=NumberSequence.new({
+            NumberSequenceKeypoint.new(0,0.05),
+            NumberSequenceKeypoint.new(0.75,0.25),
+            NumberSequenceKeypoint.new(1,1)
+        })
+        fire.Parent=handle
+    end
+
+    local fireGlow=Instance.new("PointLight")
+    fireGlow.Name="RoyalCrownHalloweenFireGlow"
+    fireGlow.Color=Color3.fromRGB(255,100,25)
+    fireGlow.Brightness=1.0
+    fireGlow.Range=6
+    fireGlow.Shadows=false
+    fireGlow.Parent=handle
 end
 
 VisLeft2:AddToggle("Bit8Head", {
@@ -1199,7 +1274,52 @@ VisLeft2:AddToggle("Bit8Head", {
 })
 
 
+
+-- ==================================================
+-- AVATAR COSMETIC SYNC
+-- Dipanggil setelah spawn + setelah Roblox selesai memuat appearance.
+-- ==================================================
+local function SyncAvatarVisuals()
+    local char=LocalPlayer.Character
+    if not char then return end
+
+    task.wait(0.15)
+
+    if Toggles.NoHead then
+        SetNoHead(true)
+    end
+
+    if Toggles.ChinaHat then
+        CreateChinaHat()
+    end
+
+    if Toggles.Bit8Head then
+        CreateRoyalCrown()
+    end
+end
+
+table.insert(Connections, LocalPlayer.CharacterAppearanceLoaded:Connect(function()
+    task.wait(0.35)
+    SyncAvatarVisuals()
+end))
+
+table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.60)
+    SyncAvatarVisuals()
+end))
+
 -- ACCESSORIES 1-3 REMOVED
+-- Sinkronisasi setelah appearance selesai dimuat supaya aksesori tidak hilang saat game mengganti avatar.
+table.insert(Connections, LocalPlayer.CharacterAppearanceLoaded:Connect(function()
+    task.wait(0.35)
+    SyncAvatarVisuals()
+end))
+
+table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.35)
+    SyncAvatarVisuals()
+end))
+
 
 -- LEG EFFECTS: satu toggle untuk kedua kaki, 7 pilihan, tanpa Image ID
 local legEffectObjects={}
@@ -1557,7 +1677,7 @@ end))
 -- Local 2D Sky: one camera-facing image plane. This is a 2D backdrop, not a six-face Roblox Sky.
 local skyFolder, skyConnection
 local FRONT_ID = "rbxassetid://80856954747945" -- asset ID must be a usable image/decal
-local SKY_DISTANCE = 190
+local SKY_DISTANCE = 50
 local function ClearLocalSky()
     if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
     if skyFolder then skyFolder:Destroy(); skyFolder=nil end
