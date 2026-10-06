@@ -1681,7 +1681,7 @@ local skyFolder, skyConnection
 local FRONT_ID = "rbxassetid://80856954747945"
 
 -- Jarak sky dari kamera
-local SKY_DISTANCE = 500
+local SKY_DISTANCE = 300
 
 -- Ukuran sky
 local SKY_SIZE = 50
