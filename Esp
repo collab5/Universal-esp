@@ -9,6 +9,25 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- ==================================================
+-- PURPLE UI THEME
+-- ==================================================
+-- Applied directly to Linoria so the UI uses purple without relying on a saved theme.
+local PURPLE = Color3.fromRGB(145, 55, 235)
+local PURPLE_DARK = Color3.fromRGB(90, 35, 140)
+local PURPLE_BG = Color3.fromRGB(25, 12, 38)
+local PURPLE_OUTLINE = Color3.fromRGB(105, 55, 145)
+
+Library.AccentColor = PURPLE
+Library.AccentColorDark = PURPLE_DARK
+Library.MainColor = PURPLE_BG
+Library.BackgroundColor = Color3.fromRGB(15, 8, 24)
+Library.OutlineColor = PURPLE_OUTLINE
+Library.FontColor = Color3.fromRGB(245, 235, 255)
+pcall(function()
+    Library:UpdateColorsUsingRegistry()
+end)
+
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
@@ -34,7 +53,11 @@ end
 
 local function GetHumanoidRootPart()
     local char = GetCharacter()
-    return char and char:FindFirstChild("HumanoidRootPart")
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart")
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
+        or char:FindFirstChildWhichIsA("BasePart")
 end
 
 local function GetPlayers()
@@ -52,7 +75,11 @@ local function GetNearestPlayer(radius)
     if not hrp then return nil end
     local nearest, dist = nil, radius or math.huge
     for _, player in ipairs(GetPlayers()) do
-        local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+        local targetChar = player.Character
+        local targetHrp = targetChar and (targetChar:FindFirstChild("HumanoidRootPart")
+            or targetChar:FindFirstChild("UpperTorso")
+            or targetChar:FindFirstChild("Torso")
+            or targetChar:FindFirstChildWhichIsA("BasePart"))
         if targetHrp then
             local d = (targetHrp.Position - hrp.Position).Magnitude
             if d < dist then
@@ -66,7 +93,11 @@ end
 
 local function IsPlayerVisible(player)
     if not player or not player.Character then return false end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local char = player.Character
+    local hrp = char and (char:FindFirstChild("HumanoidRootPart")
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
+        or char:FindFirstChildWhichIsA("BasePart"))
     if not hrp then return false end
     local origin = Camera.CFrame.Position
     local direction = (hrp.Position - origin).Unit
@@ -1007,98 +1038,37 @@ end})
 -- LAYAR GEPENG / HORIZONTAL STRETCH.
 -- Simulasi layar yang melebar ke kanan dan kiri dengan memperlebar bentuk badan karakter lokal.
 -- Nilai default dibuat ringan supaya distorsi tidak terlalu pekat.
+-- SCREEN STRETCH: efek layar gepeng seperti resolution matrix.
+-- Nilai 0.46 dibuat sebagai default sesuai contoh pengguna.
 local screenStretchConnection
-local screenStretchOriginalParts={}
-local screenStretchOriginalJoints={}
-
-local BODY_PART_NAMES={
-    Head=true,
-    Torso=true,
-    UpperTorso=true,
-    LowerTorso=true,
-    LeftUpperArm=true,
-    LeftLowerArm=true,
-    LeftHand=true,
-    RightUpperArm=true,
-    RightLowerArm=true,
-    RightHand=true,
-    LeftUpperLeg=true,
-    LeftLowerLeg=true,
-    LeftFoot=true,
-    RightUpperLeg=true,
-    RightLowerLeg=true,
-    RightFoot=true,
-    ["Left Arm"]=true,
-    ["Right Arm"]=true,
-    ["Left Leg"]=true,
-    ["Right Leg"]=true,
-}
-
-local function IsStretchBodyPart(obj)
-    return obj and obj:IsA("BasePart") and BODY_PART_NAMES[obj.Name] == true
-end
+local SCREEN_STRETCH_DEFAULT=0.46
 
 local function ClearScreenStretch()
     if screenStretchConnection then
         screenStretchConnection:Disconnect()
         screenStretchConnection=nil
     end
-    for obj,state in pairs(screenStretchOriginalParts) do
-        if obj and obj.Parent then
-            pcall(function() obj.Size=state.Size end)
-        end
-    end
-    for obj,state in pairs(screenStretchOriginalJoints) do
-        if obj and obj.Parent then
-            pcall(function()
-                obj.C0=state.C0
-                obj.C1=state.C1
-            end)
-        end
-    end
-    screenStretchOriginalParts={}
-    screenStretchOriginalJoints={}
 end
 
 local function ApplyScreenStretch()
     ClearScreenStretch()
-    local char=LocalPlayer.Character
-    if not char then return end
-
-    for _,obj in ipairs(char:GetDescendants()) do
-        if IsStretchBodyPart(obj) then
-            screenStretchOriginalParts[obj]={Size=obj.Size}
-        elseif obj:IsA("Motor6D") then
-            if IsStretchBodyPart(obj.Part0) or IsStretchBodyPart(obj.Part1) then
-                screenStretchOriginalJoints[obj]={C0=obj.C0,C1=obj.C1}
-            end
-        end
-    end
-
     screenStretchConnection=RunService.RenderStepped:Connect(function()
         if not Toggles.ScreenStretch then return end
-        local c=LocalPlayer.Character
-        if not c then return end
-        local amount=math.clamp(Options.ScreenStretchAmount or 1.15,1,1.6)
-
-        for obj,state in pairs(screenStretchOriginalParts) do
-            if obj and obj.Parent then
-                obj.Size=Vector3.new(state.Size.X*amount,state.Size.Y,state.Size.Z)
-            end
-        end
-
-        for obj,state in pairs(screenStretchOriginalJoints) do
-            if obj and obj.Parent then
-                local c0=state.C0
-                local c1=state.C1
-                obj.C0=CFrame.new(c0.Position.X*amount,c0.Position.Y,c0.Position.Z)*c0.Rotation
-                obj.C1=CFrame.new(c1.Position.X*amount,c1.Position.Y,c1.Position.Z)*c1.Rotation
-            end
-        end
+        local cam=Workspace.CurrentCamera
+        if not cam then return end
+        local resolution=math.clamp(Options.ScreenStretchAmount or SCREEN_STRETCH_DEFAULT,0.10,1.00)
+        pcall(function()
+            cam.CFrame=cam.CFrame*CFrame.new(
+                0,0,0,
+                1,0,0,
+                0,resolution,0,
+                0,0,1
+            )
+        end)
     end)
 end
 
-local ScreenStretchGroup=V5Tab:AddRightGroupbox("🖥️ SCREEN EFFECT")
+local ScreenStretchGroup=V5Tab:AddRightGroupbox("🖥️ LAYAR GEPENG")
 ScreenStretchGroup:AddToggle("ScreenStretch", {
     Text="Layar Gepeng",
     Default=false,
@@ -1108,10 +1078,10 @@ ScreenStretchGroup:AddToggle("ScreenStretch", {
     end
 })
 ScreenStretchGroup:AddSlider("ScreenStretchAmount", {
-    Text="Lebar Horizontal",
-    Default=1.15,
-    Min=1.0,
-    Max=1.6,
+    Text="Kekuatan / Lebar",
+    Default=0.46,
+    Min=0.10,
+    Max=1.00,
     Rounding=2,
     Callback=function(v)
         Options.ScreenStretchAmount=v
@@ -1587,7 +1557,7 @@ end))
 -- Local 2D Sky: one camera-facing image plane. This is a 2D backdrop, not a six-face Roblox Sky.
 local skyFolder, skyConnection
 local FRONT_ID = "rbxassetid://80856954747945" -- asset ID must be a usable image/decal
-local SKY_DISTANCE = 50
+local SKY_DISTANCE = 190
 local function ClearLocalSky()
     if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
     if skyFolder then skyFolder:Destroy(); skyFolder=nil end
@@ -1941,24 +1911,6 @@ end
 hudTrack(RunService.Heartbeat:Connect(updateHudIcons))
 hudTrack(LocalPlayer.CharacterAdded:Connect(function() hudLocked={}; hudLastHook={}; hudLastProgress={}; hudStatusHooked={} end))
 
-
--- CINEMATIC CAMERA: Follow / Orbit / Trailer
-local cinematicConnection; local cinematicMode="Follow"; local cinematicTime=0
-local function StopCinematic() if cinematicConnection then cinematicConnection:Disconnect(); cinematicConnection=nil end; local hum=GetHumanoid(); Camera.CameraType=Enum.CameraType.Custom; if hum then Camera.CameraSubject=hum end end
-local function StartCinematic()
- StopCinematic(); Camera.CameraType=Enum.CameraType.Scriptable; cinematicTime=0
- cinematicConnection=RunService.RenderStepped:Connect(function(dt)
-  local c=LocalPlayer.Character; local root=c and c:FindFirstChild("HumanoidRootPart"); if not root then return end; cinematicTime+=dt
-  local pos
-  if cinematicMode=="Follow" then pos=root.Position-root.CFrame.LookVector*9+Vector3.new(0,4,0)
-  elseif cinematicMode=="Orbit" then local a=cinematicTime*.7; pos=root.Position+Vector3.new(math.cos(a)*10,4.5,math.sin(a)*10)
-  else local ph=cinematicTime%12; local a=ph*.35; local r=8+math.sin(ph*.5)*5; pos=root.Position+Vector3.new(math.cos(a)*r,3+math.sin(ph*.4)*3,math.sin(a)*r) end
-  Camera.CFrame=CFrame.lookAt(pos,root.Position+Vector3.new(0,2,0))
- end)
-end
-local CG=V5Tab:AddLeftGroupbox("🎬 CINEMATIC")
-CG:AddToggle("CinematicCamera",{Text="Kamera Cinematic",Default=false,Callback=function(v) Toggles.CinematicCamera=v; if v then StartCinematic() else StopCinematic() end end})
-CG:AddDropdown("CinematicMode",{Values={"Follow","Orbit","Trailer"},Default="Follow",Text="Mode",Callback=function(v) cinematicMode=v; if Toggles.CinematicCamera then StartCinematic() end end})
 
 -- ==================================================
 -- [BAGIAN 4] UI / MENU
