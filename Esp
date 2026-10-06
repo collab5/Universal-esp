@@ -35,7 +35,7 @@ local Camera = Workspace.CurrentCamera
 
 local Window = Library:CreateWindow({
     AutoShow = true,
-    Title = "vex¿v | V1",
+    Title = "van¿",
     MenuFadeTime = 0.001,
     TabPadding = 0.8,
     Center = true
@@ -1674,16 +1674,33 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
--- Local 2D Sky: one camera-facing image plane. This is a 2D backdrop, not a six-face Roblox Sky.
+-- Local 2D Sky: one camera-facing image plane.
+-- This is a 2D backdrop, not a six-face Roblox Sky.
 local skyFolder, skyConnection
-local FRONT_ID = "rbxassetid://80856954747945" -- asset ID must be a usable image/decal
-local SKY_DISTANCE = 50
+
+local FRONT_ID = "rbxassetid://80856954747945"
+
+-- Jarak sky dari kamera
+local SKY_DISTANCE = 500
+
+-- Ukuran sky
+local SKY_SIZE = 50
+
 local function ClearLocalSky()
-    if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
-    if skyFolder then skyFolder:Destroy(); skyFolder=nil end
+    if skyConnection then
+        skyConnection:Disconnect()
+        skyConnection = nil
+    end
+
+    if skyFolder then
+        skyFolder:Destroy()
+        skyFolder = nil
+    end
 end
+
 local function CreateLocalSky()
     ClearLocalSky()
+
     skyFolder = Instance.new("Folder")
     skyFolder.Name = "V1_Local2DSky"
     skyFolder.Parent = Workspace
@@ -1697,7 +1714,9 @@ local function CreateLocalSky()
     plane.CastShadow = false
     plane.Transparency = 1
     plane.Material = Enum.Material.SmoothPlastic
-    plane.Size = Vector3.new(1, 1, 0.05)
+
+    -- Ukuran awal
+    plane.Size = Vector3.new(SKY_SIZE, SKY_SIZE, 0.05)
     plane.Parent = skyFolder
 
     local decal = Instance.new("Decal")
@@ -1709,42 +1728,129 @@ local function CreateLocalSky()
 
     skyConnection = RunService.RenderStepped:Connect(function()
         local cam = Workspace.CurrentCamera
-        if not cam or not plane.Parent then return end
-        local viewport = cam.ViewportSize
-        local height = 2 * SKY_DISTANCE * math.tan(math.rad(cam.FieldOfView) / 2)
-        local aspect = viewport.Y > 0 and viewport.X / viewport.Y or (16/9)
-        plane.Size = Vector3.new(height * aspect, height, 0.05)
+        if not cam or not plane.Parent then
+            return
+        end
+
         local cf = cam.CFrame
         local pos = cf.Position
-        plane.CFrame = CFrame.lookAt(pos + cf.LookVector * SKY_DISTANCE, pos)
+
+        -- Ukuran tetap 50
+        plane.Size = Vector3.new(
+            SKY_SIZE,
+            SKY_SIZE,
+            0.05
+        )
+
+        -- Tetap berada 50 stud di depan kamera
+        plane.CFrame = CFrame.lookAt(
+            pos + cf.LookVector * SKY_DISTANCE,
+            pos
+        )
     end)
 end
-ModRight:AddToggle("LocalSky", {Text="Skybox 2D Lokal", Default=false, Callback=function(v)
-    Toggles.LocalSky = v
-    if v then CreateLocalSky() else ClearLocalSky() end
-end})
 
--- FPS Optimizer: opsi ringan, bisa dibalik
+ModRight:AddToggle("LocalSky", {
+    Text = "Skybox 2D Lokal",
+    Default = false,
+    Callback = function(v)
+        Toggles.LocalSky = v
+
+        if v then
+            CreateLocalSky()
+        else
+            ClearLocalSky()
+        end
+    end
+})
+
+
+-- FPS Optimizer
+-- Mengurangi texture dan efek visual, tetapi bisa dikembalikan
+
 local fpsOriginal = {}
+
+local function SaveState(obj, property, value)
+    if not fpsOriginal[obj] then
+        fpsOriginal[obj] = {}
+    end
+
+    if fpsOriginal[obj][property] == nil then
+        fpsOriginal[obj][property] = value
+    end
+end
+
 local function SetFPSOptimizer(enabled)
     if not enabled then
-        for obj, state in pairs(fpsOriginal) do
+        -- RESTORE
+        for obj, states in pairs(fpsOriginal) do
             if obj and obj.Parent then
-                pcall(function() obj.Enabled=state end)
+                for property, value in pairs(states) do
+                    pcall(function()
+                        obj[property] = value
+                    end)
+                end
             end
         end
-        fpsOriginal={}
+
+        fpsOriginal = {}
         return
     end
-    fpsOriginal={}
-    for _,obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            fpsOriginal[obj]=obj.Enabled
-            obj.Enabled=false
+
+    fpsOriginal = {}
+
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+
+        -- Particle / Beam / Trail
+        if obj:IsA("ParticleEmitter")
+        or obj:IsA("Trail")
+        or obj:IsA("Beam") then
+
+            SaveState(obj, "Enabled", obj.Enabled)
+            obj.Enabled = false
+
+        -- Texture / Decal
+        elseif obj:IsA("Decal")
+        or obj:IsA("Texture") then
+
+            SaveState(obj, "Transparency", obj.Transparency)
+            obj.Transparency = 1
+
+        -- SurfaceAppearance
+        elseif obj:IsA("SurfaceAppearance") then
+
+            SaveState(obj, "Enabled", obj.Enabled)
+            obj.Enabled = false
+
+        -- Lighting effects
+        elseif obj:IsA("BloomEffect")
+        or obj:IsA("BlurEffect")
+        or obj:IsA("ColorCorrectionEffect")
+        or obj:IsA("SunRaysEffect")
+        or obj:IsA("DepthOfFieldEffect") then
+
+            SaveState(obj, "Enabled", obj.Enabled)
+            obj.Enabled = false
+
+        -- Part material dibuat lebih ringan
+        elseif obj:IsA("BasePart") then
+
+            SaveState(obj, "Material", obj.Material)
+            obj.Material = Enum.Material.SmoothPlastic
+
         end
     end
 end
-ModLeft:AddToggle("FPSOptimizer", {Text="FPS Optimizer", Default=false, Callback=function(v) Toggles.FPSOptimizer=v; SetFPSOptimizer(v) end})
+
+ModLeft:AddToggle("FPSOptimizer", {
+    Text = "FPS Optimizer",
+    Default = false,
+
+    Callback = function(v)
+        Toggles.FPSOptimizer = v
+        SetFPSOptimizer(v)
+    end
+})
 
 
 -- VISUAL HITBOX DIAGNOSTIC: visual only.
