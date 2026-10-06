@@ -315,7 +315,7 @@ local function SetChamsSelf(enabled)
         chamsHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         chamsHighlight.FillColor = Color3.fromRGB(125, 55, 170)
         chamsHighlight.FillTransparency = 0.92
-        chamsHighlight.OutlineColor = Color3.fromRGB(70, , 255)
+        chamsHighlight.OutlineColor = Color3.fromRGB(70, 120, 255)
         chamsHighlight.OutlineTransparency = 0.05
         chamsHighlight.Parent = char
     else
@@ -1309,16 +1309,6 @@ table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
 end))
 
 -- ACCESSORIES 1-3 REMOVED
--- Sinkronisasi setelah appearance selesai dimuat supaya aksesori tidak hilang saat game mengganti avatar.
-table.insert(Connections, LocalPlayer.CharacterAppearanceLoaded:Connect(function()
-    task.wait(0.35)
-    SyncAvatarVisuals()
-end))
-
-table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.35)
-    SyncAvatarVisuals()
-end))
 
 
 -- LEG EFFECTS: satu toggle untuk kedua kaki, 7 pilihan, tanpa Image ID
@@ -1816,11 +1806,6 @@ local function SetFPSOptimizer(enabled)
             SaveState(obj, "Transparency", obj.Transparency)
             obj.Transparency = 1
 
-        -- SurfaceAppearance
-        elseif obj:IsA("SurfaceAppearance") then
-
-            SaveState(obj, "Enabled", obj.Enabled)
-            obj.Enabled = false
 
         -- Lighting effects
         elseif obj:IsA("BloomEffect")
