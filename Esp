@@ -197,6 +197,16 @@ VisRight:AddToggle("NoShadow", {
     end
 })
 
+-- Universal character anchor: dipakai fitur aksesori supaya R6/R15/custom rig tidak langsung gagal.
+local function GetCharacterHeadOrPart(char)
+    if not char then return nil end
+    return char:FindFirstChild("Head")
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
+        or char:FindFirstChild("HumanoidRootPart")
+        or char:FindFirstChildWhichIsA("BasePart",true)
+end
+
 -- China Hat: selalu hapus instance lama sebelum membuat baru
 local chinaHatConnection
 local function RemoveChinaHat(char)
@@ -210,7 +220,7 @@ local function CreateChinaHat()
     local char = LocalPlayer.Character
     if not char then return end
     RemoveChinaHat(char)
-    local head = char:FindFirstChild("Head")
+    local head = GetCharacterHeadOrPart(char)
     if not head then return end
     local hat = Instance.new("Part")
     hat.Name = "ChinaHat"
@@ -289,50 +299,239 @@ VisLeft2:AddToggle("ChamsSelf", {
     Callback = function(val) Toggles.ChamsSelf = val; SetChamsSelf(val) end
 })
 
--- ESP + profile image 20x20 di atas nama
-local espEntries = {}
+-- UNIVERSAL ESP: tidak menempelkan instance ESP ke Character game lain.
+-- Memakai container lokal terpisah agar game yang mengganti/membersihkan Character
+-- tidak ikut menghapus ESP. Juga lebih tahan terhadap R6, R15, custom rigs, dan streaming.
+local universalESPFolder=Workspace:FindFirstChild("VexV_UniversalESP")
+if not universalESPFolder then
+    universalESPFolder=Instance.new("Folder")
+    universalESPFolder.Name="VexV_UniversalESP"
+    universalESPFolder.Parent=Workspace
+end
+
+local universalESPGui=Instance.new("ScreenGui")
+universalESPGui.Name="VexV_UniversalESP_GUI"
+universalESPGui.ResetOnSpawn=false
+universalESPGui.IgnoreGuiInset=true
+pcall(function() universalESPGui.Parent=game:GetService("CoreGui") end)
+if not universalESPGui.Parent then universalESPGui.Parent=LocalPlayer:WaitForChild("PlayerGui") end
+
+local function GetESPAnchor(char)
+    if not char then return nil end
+    local humanoid=char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return nil end
+
+    return char:FindFirstChild("Head")
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
+        or char:FindFirstChild("HumanoidRootPart")
+        or char:FindFirstChildWhichIsA("BasePart",true)
+end
+
+local espEntries={}
 local function RemoveESP(player)
-    local e=espEntries[player]; if not e then return end
+    local e=espEntries[player]
+    if not e then return end
     if e.highlight then e.highlight:Destroy() end
     if e.gui then e.gui:Destroy() end
     espEntries[player]=nil
 end
+
 local function AddESP(player)
     if player==LocalPlayer or not Toggles.ESP_simple then return end
+    local char=player.Character
+    local anchor=GetESPAnchor(char)
+    if not char or not anchor then
+        return
+    end
+
     RemoveESP(player)
-    local char=player.Character; if not char then return end
+
     local hl=Instance.new("Highlight")
-    hl.Name="VexV_ESP"; hl.Adornee=char; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-    hl.FillColor=Color3.fromRGB(255,0,255); hl.FillTransparency=0.65
-    hl.OutlineColor=Color3.fromRGB(255,255,255); hl.OutlineTransparency=0.35; hl.Parent=char
-    local head=char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart"); if not head then hl:Destroy(); return end
-    local gui=Instance.new("BillboardGui"); gui.Name="VexV_ESP_Name"; gui.Adornee=head; gui.Size=UDim2.fromOffset(150,54)
-    gui.StudsOffset=Vector3.new(0,3.15,0); gui.AlwaysOnTop=true; gui.MaxDistance=250; gui.Parent=char
-    local profile=Instance.new("ImageLabel"); profile.Name="ProfileImage"; profile.Size=UDim2.fromOffset(30,30)
-    profile.Position=UDim2.new(0.5,-15,0,0); profile.BackgroundTransparency=1; profile.ScaleType=Enum.ScaleType.Fit; profile.Parent=gui
-    local label=Instance.new("TextLabel"); label.Size=UDim2.new(1,0,0,24); label.Position=UDim2.new(0,0,0,31)
-    label.BackgroundTransparency=1; label.Text=player.Name; label.TextColor3=Color3.fromRGB(230,230,230); label.TextSize=12; label.Font=Enum.Font.SourceSans; label.Parent=gui
+    hl.Name="VexV_ESP"
+    hl.Adornee=char
+    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillColor=Color3.fromRGB(255,0,255)
+    hl.FillTransparency=0.65
+    hl.OutlineColor=Color3.fromRGB(255,255,255)
+    hl.OutlineTransparency=0.35
+    hl.Parent=universalESPFolder
+
+    local gui=Instance.new("BillboardGui")
+    gui.Name="VexV_ESP_Name"
+    gui.Adornee=anchor
+    gui.Size=UDim2.fromOffset(150,54)
+    gui.StudsOffset=Vector3.new(0,3.15,0)
+    gui.AlwaysOnTop=true
+    gui.MaxDistance=10000
+    gui.Parent=universalESPGui
+
+    local profile=Instance.new("ImageLabel")
+    profile.Name="ProfileImage"
+    profile.Size=UDim2.fromOffset(30,30)
+    profile.Position=UDim2.new(0.5,-15,0,0)
+    profile.BackgroundTransparency=1
+    profile.ScaleType=Enum.ScaleType.Fit
+    profile.Parent=gui
+
+    local label=Instance.new("TextLabel")
+    label.Size=UDim2.new(1,0,0,24)
+    label.Position=UDim2.new(0,0,0,31)
+    label.BackgroundTransparency=1
+    label.Text=player.Name
+    label.TextColor3=Color3.fromRGB(230,230,230)
+    label.TextSize=12
+    label.Font=Enum.Font.SourceSans
+    label.Parent=gui
+
     task.spawn(function()
-        local ok,image=pcall(function() return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
-        if ok and profile.Parent then profile.Image=image end
+        local ok,image=pcall(function()
+            return Players:GetUserThumbnailAsync(
+                player.UserId,
+                Enum.ThumbnailType.HeadShot,
+                Enum.ThumbnailSize.Size100x100
+            )
+        end)
+        if ok and profile.Parent then
+            profile.Image=image
+        end
     end)
+
     espEntries[player]={highlight=hl,gui=gui}
 end
+
+local function RefreshESP(player)
+    if not player or player==LocalPlayer or not Toggles.ESP_simple then return end
+    task.spawn(function()
+        for i=1,5 do
+            if not Toggles.ESP_simple then return end
+            local char=player.Character
+            if GetESPAnchor(char) then
+                AddESP(player)
+                return
+            end
+            task.wait(0.2*i)
+        end
+    end)
+end
+
+local function BindUniversalESPPlayer(player)
+    if player==LocalPlayer then return end
+
+    table.insert(Connections,player.CharacterAdded:Connect(function()
+        RemoveESP(player)
+        RefreshESP(player)
+    end))
+
+    table.insert(Connections,player.CharacterAppearanceLoaded:Connect(function()
+        RefreshESP(player)
+    end))
+
+    RefreshESP(player)
+end
+
 local function SetESP(enabled)
     Toggles.ESP_simple=enabled
     for player in pairs(espEntries) do RemoveESP(player) end
     if not enabled then return end
-    for _,player in ipairs(Players:GetPlayers()) do AddESP(player) end
+    for _,player in ipairs(Players:GetPlayers()) do
+        BindUniversalESPPlayer(player)
+    end
 end
+
 VisLeft:AddToggle("ESP_simple",{Text="Eskrim",Default=false,Callback=SetESP})
-table.insert(Connections,Players.PlayerAdded:Connect(function(player)
-    if player==LocalPlayer then return end
-    table.insert(Connections,player.CharacterAdded:Connect(function() task.wait(0.2); if Toggles.ESP_simple then AddESP(player) end end))
+table.insert(Connections,Players.PlayerAdded:Connect(BindUniversalESPPlayer))
+table.insert(Connections,Players.PlayerRemoving:Connect(function(player)
+    RemoveESP(player)
 end))
 for _,player in ipairs(Players:GetPlayers()) do
-    if player~=LocalPlayer then table.insert(Connections,player.CharacterAdded:Connect(function() task.wait(0.2); if Toggles.ESP_simple then AddESP(player) end end)) end
+    BindUniversalESPPlayer(player)
 end
-table.insert(Connections,Players.PlayerRemoving:Connect(RemoveESP))
+
+-- UNIVERSAL ACCESSORY ESP: mendeteksi Accessory berdasarkan class, bukan nama game.
+local accessoryESPEntries={}
+local function ClearAccessoryESP()
+    for key,entry in pairs(accessoryESPEntries) do
+        if entry.highlight then entry.highlight:Destroy() end
+        if entry.gui then entry.gui:Destroy() end
+        accessoryESPEntries[key]=nil
+    end
+end
+
+local function RefreshAccessoryESPPlayer(player)
+    if player==LocalPlayer or not Toggles.AccessoryESP then return end
+    local char=player.Character
+    if not char then return end
+
+    for _,acc in ipairs(char:GetChildren()) do
+        if acc:IsA("Accessory") then
+            local handle=acc:FindFirstChild("Handle") or acc:FindFirstChildWhichIsA("BasePart",true)
+            if handle then
+                local key=tostring(player.UserId)..":"..acc.Name
+                if not accessoryESPEntries[key] then
+                    local hl=Instance.new("Highlight")
+                    hl.Name="VexV_AccessoryESP"
+                    hl.Adornee=handle
+                    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+                    hl.FillColor=Color3.fromRGB(255,120,40)
+                    hl.FillTransparency=0.78
+                    hl.OutlineColor=Color3.fromRGB(255,255,255)
+                    hl.OutlineTransparency=0.25
+                    hl.Parent=universalESPFolder
+
+                    local gui=Instance.new("BillboardGui")
+                    gui.Name="VexV_AccessoryName"
+                    gui.Adornee=handle
+                    gui.Size=UDim2.fromOffset(180,24)
+                    gui.StudsOffset=Vector3.new(0,1.2,0)
+                    gui.AlwaysOnTop=true
+                    gui.MaxDistance=10000
+                    gui.Parent=universalESPGui
+
+                    local label=Instance.new("TextLabel")
+                    label.Size=UDim2.fromScale(1,1)
+                    label.BackgroundTransparency=1
+                    label.Text=acc.Name
+                    label.TextColor3=Color3.fromRGB(255,220,180)
+                    label.TextSize=11
+                    label.Font=Enum.Font.SourceSans
+                    label.Parent=gui
+
+                    accessoryESPEntries[key]={highlight=hl,gui=gui,player=player,accessory=acc}
+                end
+            end
+        end
+    end
+end
+
+local function SetAccessoryESP(enabled)
+    Toggles.AccessoryESP=enabled
+    ClearAccessoryESP()
+    if not enabled then return end
+    for _,player in ipairs(Players:GetPlayers()) do
+        RefreshAccessoryESPPlayer(player)
+    end
+end
+
+VisLeft:AddToggle("AccessoryESP",{
+    Text="ESP Aksesoris",
+    Default=false,
+    Callback=SetAccessoryESP
+})
+
+table.insert(Connections,RunService.Heartbeat:Connect(function()
+    if not Toggles.AccessoryESP then return end
+    for _,player in ipairs(Players:GetPlayers()) do
+        RefreshAccessoryESPPlayer(player)
+    end
+    for key,entry in pairs(accessoryESPEntries) do
+        if not entry.accessory or not entry.accessory.Parent or not entry.player.Character then
+            if entry.highlight then entry.highlight:Destroy() end
+            if entry.gui then entry.gui:Destroy() end
+            accessoryESPEntries[key]=nil
+        end
+    end
+end))
 
 -- ==================================================
 -- V5 AVATAR / MOVEMENT / NETWORK / CAMERA
@@ -643,9 +842,15 @@ local flashlightConnection
 local function UpdateFlashlight()
     local char = LocalPlayer.Character
     if not char then return end
-    local tool = char:FindFirstChild("Flashlight") or char:FindFirstChildWhichIsA("Tool")
-    if not tool or tool.Name ~= "Flashlight" then return end
-    local light = tool:FindFirstChildWhichIsA("SpotLight", true) or tool:FindFirstChildWhichIsA("PointLight", true)
+
+    -- Universal: cari Tool yang sedang dipakai dan light apa pun di dalamnya.
+    local tool=char:FindFirstChildWhichIsA("Tool")
+    if not tool then return end
+
+    local light=tool:FindFirstChildWhichIsA("SpotLight",true)
+        or tool:FindFirstChildWhichIsA("PointLight",true)
+        or tool:FindFirstChildWhichIsA("SurfaceLight",true)
+
     if light then
         light.Brightness = Options.FlashlightBrightness or 50
         light.Range = Options.FlashlightRange or 16
@@ -734,7 +939,7 @@ local CAMERA_FILTERS={
     ["Cinematic"]={tint=Color3.fromRGB(220,230,255),brightness=-0.03,contrast=0.2,saturation=-0.08},
     -- Roblox ColorCorrection tidak punya true color-invert.
     -- Preset ini dibuat sebagai efek "negative-style" yang kontras/terbalik secara visual.
-    ["Negative"]={tint=Color3.fromRGB(180,210,255),brightness=0.08,contrast=0.75,saturation=-0.65}
+    ["Negative"]={tint=Color3.fromRGB(195,220,255),brightness=0.02,contrast=0.22,saturation=-0.14}
 }
 local function ClearCameraFilter()
     if cameraFilterEffect then
@@ -782,6 +987,7 @@ table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
     if Toggles.NoHead then SetNoHead(true) end
     if Toggles.OneLeg then SetOneLeg(true) end
     if Toggles.SpeedUp then UpdateSpeed() end
+    if Toggles.ChamsSelf then SetChamsSelf(true) end
 end))
 
 -- Mode 4:3
@@ -798,6 +1004,126 @@ ModRight:AddToggle("Aspect43", {Text="Mode 4:3", Default=false, Callback=functio
     table.insert(Connections, conn)
 end})
 
+-- LAYAR GEPENG / HORIZONTAL STRETCH.
+-- Simulasi layar yang melebar ke kanan dan kiri dengan memperlebar bentuk badan karakter lokal.
+-- Nilai default dibuat ringan supaya distorsi tidak terlalu pekat.
+local screenStretchConnection
+local screenStretchOriginalParts={}
+local screenStretchOriginalJoints={}
+
+local BODY_PART_NAMES={
+    Head=true,
+    Torso=true,
+    UpperTorso=true,
+    LowerTorso=true,
+    LeftUpperArm=true,
+    LeftLowerArm=true,
+    LeftHand=true,
+    RightUpperArm=true,
+    RightLowerArm=true,
+    RightHand=true,
+    LeftUpperLeg=true,
+    LeftLowerLeg=true,
+    LeftFoot=true,
+    RightUpperLeg=true,
+    RightLowerLeg=true,
+    RightFoot=true,
+    ["Left Arm"]=true,
+    ["Right Arm"]=true,
+    ["Left Leg"]=true,
+    ["Right Leg"]=true,
+}
+
+local function IsStretchBodyPart(obj)
+    return obj and obj:IsA("BasePart") and BODY_PART_NAMES[obj.Name] == true
+end
+
+local function ClearScreenStretch()
+    if screenStretchConnection then
+        screenStretchConnection:Disconnect()
+        screenStretchConnection=nil
+    end
+    for obj,state in pairs(screenStretchOriginalParts) do
+        if obj and obj.Parent then
+            pcall(function() obj.Size=state.Size end)
+        end
+    end
+    for obj,state in pairs(screenStretchOriginalJoints) do
+        if obj and obj.Parent then
+            pcall(function()
+                obj.C0=state.C0
+                obj.C1=state.C1
+            end)
+        end
+    end
+    screenStretchOriginalParts={}
+    screenStretchOriginalJoints={}
+end
+
+local function ApplyScreenStretch()
+    ClearScreenStretch()
+    local char=LocalPlayer.Character
+    if not char then return end
+
+    for _,obj in ipairs(char:GetDescendants()) do
+        if IsStretchBodyPart(obj) then
+            screenStretchOriginalParts[obj]={Size=obj.Size}
+        elseif obj:IsA("Motor6D") then
+            if IsStretchBodyPart(obj.Part0) or IsStretchBodyPart(obj.Part1) then
+                screenStretchOriginalJoints[obj]={C0=obj.C0,C1=obj.C1}
+            end
+        end
+    end
+
+    screenStretchConnection=RunService.RenderStepped:Connect(function()
+        if not Toggles.ScreenStretch then return end
+        local c=LocalPlayer.Character
+        if not c then return end
+        local amount=math.clamp(Options.ScreenStretchAmount or 1.15,1,1.6)
+
+        for obj,state in pairs(screenStretchOriginalParts) do
+            if obj and obj.Parent then
+                obj.Size=Vector3.new(state.Size.X*amount,state.Size.Y,state.Size.Z)
+            end
+        end
+
+        for obj,state in pairs(screenStretchOriginalJoints) do
+            if obj and obj.Parent then
+                local c0=state.C0
+                local c1=state.C1
+                obj.C0=CFrame.new(c0.Position.X*amount,c0.Position.Y,c0.Position.Z)*c0.Rotation
+                obj.C1=CFrame.new(c1.Position.X*amount,c1.Position.Y,c1.Position.Z)*c1.Rotation
+            end
+        end
+    end)
+end
+
+local ScreenStretchGroup=V5Tab:AddRightGroupbox("🖥️ SCREEN EFFECT")
+ScreenStretchGroup:AddToggle("ScreenStretch", {
+    Text="Layar Gepeng",
+    Default=false,
+    Callback=function(v)
+        Toggles.ScreenStretch=v
+        if v then ApplyScreenStretch() else ClearScreenStretch() end
+    end
+})
+ScreenStretchGroup:AddSlider("ScreenStretchAmount", {
+    Text="Lebar Horizontal",
+    Default=1.15,
+    Min=1.0,
+    Max=1.6,
+    Rounding=2,
+    Callback=function(v)
+        Options.ScreenStretchAmount=v
+        if Toggles.ScreenStretch then ApplyScreenStretch() end
+    end
+})
+
+table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.35)
+    if Toggles.ScreenStretch then ApplyScreenStretch() end
+end))
+
 -- 8-Bit Royal Crown
 -- Metode pemasangan dibuat mengikuti China Hat: Part lokal + SpecialMesh + Weld.
 local ROYAL_CROWN_MESH_ID = "rbxassetid://10138606900"
@@ -813,7 +1139,7 @@ local function CreateRoyalCrown()
     local c = LocalPlayer.Character
     if not c then return end
 
-    local head = c:FindFirstChild("Head")
+    local head = GetCharacterHeadOrPart(c)
     if not head then return end
 
     RemoveRoyalCrown()
@@ -1258,28 +1584,16 @@ table.insert(Connections,UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
--- LOCAL 2D SKY: versi 1 ID, satu bidang mengikuti kamera.
--- Dipertahankan sebagai backdrop 2D, bukan Roblox Sky 6 sisi dan bukan Front/Back.
+-- Local 2D Sky: one camera-facing image plane. This is a 2D backdrop, not a six-face Roblox Sky.
 local skyFolder, skyConnection
-local FRONT_ID = "rbxassetid://80856954747945"
-local SKY_DISTANCE = 110
-local SKY_MIN_SIZE = 140
-local SKY_MAX_SIZE = 2000
-
+local FRONT_ID = "rbxassetid://80856954747945" -- asset ID must be a usable image/decal
+local SKY_DISTANCE = 190
 local function ClearLocalSky()
-    if skyConnection then
-        skyConnection:Disconnect()
-        skyConnection = nil
-    end
-    if skyFolder then
-        skyFolder:Destroy()
-        skyFolder = nil
-    end
+    if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
+    if skyFolder then skyFolder:Destroy(); skyFolder=nil end
 end
-
 local function CreateLocalSky()
     ClearLocalSky()
-
     skyFolder = Instance.new("Folder")
     skyFolder.Name = "V1_Local2DSky"
     skyFolder.Parent = Workspace
@@ -1291,10 +1605,9 @@ local function CreateLocalSky()
     plane.CanTouch = false
     plane.CanQuery = false
     plane.CastShadow = false
+    plane.Transparency = 1
     plane.Material = Enum.Material.SmoothPlastic
-    plane.Transparency = 0
-    plane.Color = Color3.new(1,1,1)
-    plane.Size = Vector3.new(SKY_MIN_SIZE, SKY_MIN_SIZE, 0.05)
+    plane.Size = Vector3.new(1, 1, 0.05)
     plane.Parent = skyFolder
 
     local decal = Instance.new("Decal")
@@ -1304,51 +1617,22 @@ local function CreateLocalSky()
     decal.Transparency = 0
     decal.Parent = plane
 
-    local function updatePlane()
+    skyConnection = RunService.RenderStepped:Connect(function()
         local cam = Workspace.CurrentCamera
         if not cam or not plane.Parent then return end
-
         local viewport = cam.ViewportSize
-        local aspect = (viewport.Y > 0) and (viewport.X / viewport.Y) or (16/9)
-
-        -- Ukuran bidang dihitung dari FOV agar menutupi area kamera.
-        local distance = SKY_DISTANCE
-        local halfFov = math.rad(cam.FieldOfView * 0.5)
-        local height = 2 * distance * math.tan(halfFov)
-
-        -- Batasi ukuran supaya tidak menjadi terlalu kecil/besar pada FOV ekstrem.
-        height = math.clamp(height, SKY_MIN_SIZE, SKY_MAX_SIZE)
-        local width = math.clamp(height * aspect, SKY_MIN_SIZE, SKY_MAX_SIZE)
-
-        plane.Size = Vector3.new(width, height, 0.05)
-
+        local height = 2 * SKY_DISTANCE * math.tan(math.rad(cam.FieldOfView) / 2)
+        local aspect = viewport.Y > 0 and viewport.X / viewport.Y or (16/9)
+        plane.Size = Vector3.new(height * aspect, height, 0.05)
         local cf = cam.CFrame
-        plane.CFrame = CFrame.lookAt(
-            cf.Position + cf.LookVector * distance,
-            cf.Position
-        )
-    end
-
-    updatePlane()
-
-    skyConnection = RunService.RenderStepped:Connect(function()
-        if not Toggles.LocalSky then return end
-        updatePlane()
+        local pos = cf.Position
+        plane.CFrame = CFrame.lookAt(pos + cf.LookVector * SKY_DISTANCE, pos)
     end)
 end
-
-ModRight:AddToggle("LocalSky", {
-    Text="Local 2D Sky (Front + Back)",
-    Default=false,
-    Callback=function(v)
-        Toggles.LocalSky=v
-        if v then
-            CreateLocalSky()
-        else
-            ClearLocalSky()
-        end
-    end
-})
+ModRight:AddToggle("LocalSky", {Text="Skybox 2D Lokal", Default=false, Callback=function(v)
+    Toggles.LocalSky = v
+    if v then CreateLocalSky() else ClearLocalSky() end
+end})
 
 -- FPS Optimizer: opsi ringan, bisa dibalik
 local fpsOriginal = {}
@@ -1687,6 +1971,11 @@ UILeft:AddButton("Unload", function()
     CleanupCameraBlock()
     ClearCameraFilter()
     ClearLocalSky()
+    ClearScreenStretch()
+    ClearAccessoryESP()
+    for player in pairs(espEntries) do RemoveESP(player) end
+    if universalESPGui then universalESPGui:Destroy() end
+    if universalESPFolder and universalESPFolder.Parent then universalESPFolder:Destroy() end
     if speedConnection then speedConnection:Disconnect(); speedConnection=nil end
     if noSlowConnection then noSlowConnection:Disconnect(); noSlowConnection=nil end
     if noFallConnection then noFallConnection:Disconnect(); noFallConnection=nil end
