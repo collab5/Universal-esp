@@ -1587,7 +1587,7 @@ end))
 -- Local 2D Sky: one camera-facing image plane. This is a 2D backdrop, not a six-face Roblox Sky.
 local skyFolder, skyConnection
 local FRONT_ID = "rbxassetid://80856954747945" -- asset ID must be a usable image/decal
-local SKY_DISTANCE = 190
+local SKY_DISTANCE = 50
 local function ClearLocalSky()
     if skyConnection then skyConnection:Disconnect(); skyConnection=nil end
     if skyFolder then skyFolder:Destroy(); skyFolder=nil end
