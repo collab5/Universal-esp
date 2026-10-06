@@ -315,7 +315,7 @@ local function SetChamsSelf(enabled)
         chamsHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         chamsHighlight.FillColor = Color3.fromRGB(125, 55, 170)
         chamsHighlight.FillTransparency = 0.92
-        chamsHighlight.OutlineColor = Color3.fromRGB(70, 150, 255)
+        chamsHighlight.OutlineColor = Color3.fromRGB(70, , 255)
         chamsHighlight.OutlineTransparency = 0.05
         chamsHighlight.Parent = char
     else
@@ -1681,7 +1681,7 @@ local skyFolder, skyConnection
 local FRONT_ID = "rbxassetid://80856954747945"
 
 -- Jarak sky dari kamera
-local SKY_DISTANCE = 150
+local SKY_DISTANCE = 80
 
 -- Ukuran sky
 local SKY_SIZE = 50
@@ -2006,7 +2006,7 @@ local HEALTHY_ICON="rbxassetid://109605592074068"
 local HURT_ICON="rbxassetid://83411221382159"
 local DOWN_ICON="rbxassetid://81153787472276"
 local HOOK_ICON="rbxassetid://81319630134883"
-local ESCAPE_ICON="rbxassetid://139225871500448"
+local ESCAPE_ICON="rbxassetid://139225870448"
 local DISCONNECT_ICON="rbxassetid://88565816558378"
 local DEAD_ICON="rbxassetid://135865638053237"
 local BROKEN_ICON="rbxassetid://126119813392957"
